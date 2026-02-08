@@ -541,144 +541,76 @@ app.put('/api/admin/employee/:id', (req, res) => {
   const wageValue = salaryTypeValue === 'hourly' ? (hourly_wage || 12.00) : 0;
   const salaryValue = salaryTypeValue === 'fixed' ? (fixed_salary || 0) : 0;
 
-  // Aktuelles Jahr und Monat
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
-  // Transaction: Update Employee und speichere Lohnhistorie
-  db.serialize(() => {
-    // Erst den alten Lohn laden
-    db.get(
-      'SELECT hourly_wage, fixed_salary, salary_type, created_at FROM employees WHERE id = ?',
-      [id],
-      (err, oldEmployee) => {
-        if (err) {
-          return res.status(500).json({ error: 'Fehler beim Laden des Mitarbeiters: ' + err.message });
-        }
+  // Schritt 1: Alte Werte laden
+  db.get('SELECT hourly_wage, fixed_salary, salary_type FROM employees WHERE id = ?', [id], (err, oldData) => {
+    if (err) return res.status(500).json({ error: err.message });
 
-        // Prüfe ob bereits Lohnhistorie für diesen Monat existiert
-        db.get(
-          'SELECT id FROM employee_salary_history WHERE employee_id = ? AND year = ? AND month = ?',
-          [id, year, month],
-          (err, historyExists) => {
-            if (err) {
-              return res.status(500).json({ error: 'Fehler beim Prüfen der Lohnhistorie: ' + err.message });
+    // Schritt 2: Alle Monate mit Timesheets auflisten, die KEINE Lohnhistorie haben
+    const sql = `
+      SELECT DISTINCT 
+        CAST(SUBSTR(t.date, 1, 4) AS INTEGER) as y,
+        CAST(SUBSTR(t.date, 6, 2) AS INTEGER) as m
+      FROM timesheets t
+      WHERE t.employee_id = ?
+      AND NOT EXISTS (
+        SELECT 1 FROM employee_salary_history esh
+        WHERE esh.employee_id = ? 
+        AND esh.year = CAST(SUBSTR(t.date, 1, 4) AS INTEGER)
+        AND esh.month = CAST(SUBSTR(t.date, 6, 2) AS INTEGER)
+      )
+      ORDER BY y, m
+    `;
+
+    db.all(sql, [id, id], (err, monthsToFill) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Schritt 3: Fülle alle fehlenden Monate mit altem Lohn
+      let filled = 0;
+      if (!monthsToFill || monthsToFill.length === 0) {
+        doFinalUpdate();
+      } else {
+        monthsToFill.forEach(m => {
+          db.run(
+            'INSERT OR IGNORE INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type) VALUES (?,?,?,?,?,?)',
+            [id, m.y, m.m, oldData.hourly_wage, oldData.fixed_salary, oldData.salary_type],
+            () => {
+              filled++;
+              if (filled === monthsToFill.length) doFinalUpdate();
             }
+          );
+        });
+      }
 
-            // Wenn KEINE Geschichte für diesen Monat und auch keine älteren: Fülle alte Monate mit altem Lohn
-            if (!historyExists) {
-              db.get(
-                'SELECT COUNT(*) as count FROM employee_salary_history WHERE employee_id = ? AND (year < ? OR (year = ? AND month < ?))',
-                [id, year, year, month],
-                (err, count) => {
-                  if (err) {
-                    return res.status(500).json({ error: 'Fehler bei der Migration: ' + err.message });
-                  }
+      function doFinalUpdate() {
+        // Update Employee
+        db.run(
+          'UPDATE employees SET name=?, hourly_wage=?, fixed_salary=?, salary_type=?, employment_type=? WHERE id=?',
+          [name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
+          err => {
+            if (err) return res.status(500).json({ error: err.message });
 
-                  // Falls noch KEINE alte Lohnhistorie existiert, fülle rückwirkend
-                  if (count.count === 0 && oldEmployee) {
-                    // Finde den frühesten Timesheet-Eintrag für diesen Mitarbeiter
-                    db.get(
-                      'SELECT MIN(date) as earliest_date FROM timesheets WHERE employee_id = ?',
-                      [id],
-                      (err, result) => {
-                        if (err || !result || !result.earliest_date) {
-                          // Keine Timesheet-Einträge, nutze created_at
-                          if (oldEmployee.created_at) {
-                            const createdDate = new Date(oldEmployee.created_at);
-                            const createdYear = createdDate.getFullYear();
-                            const createdMonth = createdDate.getMonth() + 1;
-                            fillHistoryFromDate(createdYear, createdMonth);
-                          }
-                          return;
-                        }
-
-                        // Nutze das früheste Timesheet-Datum
-                        const [fillYear, fillMonth] = result.earliest_date.split('-').map(Number);
-                        fillHistoryFromDate(fillYear, fillMonth);
-                      }
-                    );
-
-                    function fillHistoryFromDate(startYear, startMonth) {
-                      const fillMonths = [];
-                      let fillYear = startYear;
-                      let fillMonth = startMonth;
-
-                      // Fülle alle Monate vom frühesten Datum bis zum Vormonat
-                      while (fillYear < year || (fillYear === year && fillMonth < month)) {
-                        fillMonths.push({ y: fillYear, m: fillMonth });
-                        fillMonth++;
-                        if (fillMonth > 12) {
-                          fillMonth = 1;
-                          fillYear++;
-                        }
-                      }
-
-                      // Nutze serialize um sicherzustellen dass alle inserts vor dem update passieren
-                      let inserted = 0;
-                      fillMonths.forEach(({ y, m }) => {
-                        db.run(
-                          `INSERT OR IGNORE INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
-                           VALUES (?, ?, ?, ?, ?, ?)`,
-                          [id, y, m, oldEmployee.hourly_wage, oldEmployee.fixed_salary, oldEmployee.salary_type],
-                          (err) => {
-                            inserted++;
-                            if (err) console.error('Fehler beim Füllen der alten Monate:', err);
-                            if (inserted === fillMonths.length) {
-                              // Alle inserts fertig, jetzt update
-                              updateEmployeeAndHistory();
-                            }
-                          }
-                        );
-                      });
-
-                      // Falls keine Monate zum Füllen: sofort update
-                      if (fillMonths.length === 0) {
-                        updateEmployeeAndHistory();
-                      }
-                    }
-                  } else {
-                    updateEmployeeAndHistory();
-                  }
-
-                }
-              );
-            } else {
-              updateEmployeeAndHistory();
-            }
-
-            function updateEmployeeAndHistory() {
-              db.run(
-                'UPDATE employees SET name = ?, hourly_wage = ?, fixed_salary = ?, salary_type = ?, employment_type = ? WHERE id = ?',
-                [name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
-                function(err) {
-                  if (err) {
-                    return res.status(500).json({ error: 'Fehler beim Aktualisieren: ' + err.message });
-                  }
-
-                  // Speichere/Update Lohnhistorie für aktuellen Monat
-                  db.run(
-                    `INSERT INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
-                     VALUES (?, ?, ?, ?, ?, ?)
-                     ON CONFLICT(employee_id, year, month) DO UPDATE SET
-                     hourly_wage = excluded.hourly_wage, fixed_salary = excluded.fixed_salary, salary_type = excluded.salary_type`,
-                    [id, year, month, wageValue, salaryValue, salaryTypeValue],
-                    function(err2) {
-                      if (err2) {
-                        return res.status(500).json({ error: 'Fehler beim Speichern der Lohnhistorie: ' + err2.message });
-                      }
-                      res.json({ success: true, message: 'Mitarbeiter aktualisiert!' });
-                    }
-                  );
-                }
-              );
-            }
+            // Update/Insert Lohnhistorie für aktuellen Monat
+            db.run(
+              `INSERT INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
+               VALUES (?,?,?,?,?,?)
+               ON CONFLICT(employee_id, year, month) DO UPDATE SET
+               hourly_wage=excluded.hourly_wage, fixed_salary=excluded.fixed_salary, salary_type=excluded.salary_type`,
+              [id, currentYear, currentMonth, wageValue, salaryValue, salaryTypeValue],
+              err2 => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ success: true, message: 'Mitarbeiter aktualisiert!' });
+              }
+            );
           }
         );
       }
-    );
+    });
   });
+})
 });
 
 // ==================== START SERVER ====================
