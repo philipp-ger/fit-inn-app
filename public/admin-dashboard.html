@@ -191,6 +191,107 @@
             border-left: 4px solid #fc8181;
         }
 
+        .add-employee-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .add-employee-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .add-employee-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .add-employee-form input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .add-employee-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-add-employee {
+            padding: 12px 24px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .btn-add-employee:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .btn-add-employee:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .add-employee-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            font-weight: 600;
+        }
+
+        .add-employee-message.success {
+            background: #c6f6d5;
+            color: #22543d;
+            display: block;
+        }
+
+        .add-employee-message.error {
+            background: #fed7d7;
+            color: #742a2a;
+            display: block;
+        }
+
+        .employee-list {
+            margin-top: 20px;
+        }
+
+        .employee-item {
+            background: #f7fafc;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .employee-item .name {
+            font-weight: 600;
+            color: #333;
+        }
+
         .employee-links {
             background: white;
             border-radius: 12px;
@@ -318,9 +419,18 @@
             </div>
         </div>
 
+        <div class="add-employee-section">
+            <h2>➕ Neuen Mitarbeiter hinzufügen</h2>
+            <div class="add-employee-form">
+                <input type="text" id="newEmployeeName" placeholder="Mitarbeitername eingeben..." maxlength="100">
+                <button class="btn-add-employee" onclick="addNewEmployee()">Hinzufügen</button>
+            </div>
+            <div id="addEmployeeMessage" class="add-employee-message"></div>
+        </div>
+
         <div class="employee-links">
-            <h2>👥 Mitarbeiter Links (zum Weitergeben)</h2>
-            <div class="links-grid" id="linksGrid">
+            <h2>👥 Alle Mitarbeiter</h2>
+            <div class="employee-list" id="employeeList">
                 <p class="loading">Mitarbeiter werden geladen...</p>
             </div>
         </div>
@@ -411,18 +521,19 @@
             fetch('/api/admin/employees')
                 .then(res => res.json())
                 .then(employees => {
-                    const grid = document.getElementById('linksGrid');
-                    grid.innerHTML = '';
+                    const list = document.getElementById('employeeList');
+                    list.innerHTML = '';
+                    
+                    if (employees.length === 0) {
+                        list.innerHTML = '<p class="loading">Keine Mitarbeiter hinzugefügt. Erstelle eine neuen Mitarbeiter oben.</p>';
+                        return;
+                    }
                     
                     employees.forEach(emp => {
-                        const link = `${window.location.origin}/time/${emp.uuid}`;
-                        grid.innerHTML += `
-                            <div class="link-card">
-                                <p><strong>Mitarbeiter:</strong></p>
-                                <p class="name">${emp.name}</p>
-                                <p><strong>Persönlicher Link:</strong></p>
-                                <input type="text" readonly value="${link}">
-                                <button class="copy-btn" onclick="copyToClipboard('${link}')">📋 In Zwischenablage kopieren</button>
+                        list.innerHTML += `
+                            <div class="employee-item">
+                                <span class="name">${emp.name}</span>
+                                <span style="color: #999; font-size: 12px;">ID: ${emp.id.substring(0, 8)}...</span>
                             </div>
                         `;
                     });
@@ -430,6 +541,51 @@
                 .catch(err => {
                     console.error('Fehler beim Laden von Mitarbeitern:', err);
                 });
+        }
+
+        function addNewEmployee() {
+            const input = document.getElementById('newEmployeeName');
+            const name = input.value.trim();
+            const msgDiv = document.getElementById('addEmployeeMessage');
+
+            if (!name) {
+                msgDiv.textContent = '❌ Bitte geben Sie einen Namen ein!';
+                msgDiv.className = 'add-employee-message error';
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Wird hinzugefügt...';
+
+            fetch('/api/admin/employee', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    msgDiv.textContent = `✅ ${data.message}`;
+                    msgDiv.className = 'add-employee-message success';
+                    input.value = '';
+                    loadEmployeeLinks();
+                    setTimeout(() => {
+                        msgDiv.className = 'add-employee-message';
+                    }, 3000);
+                } else {
+                    msgDiv.textContent = `❌ Fehler: ${data.error}`;
+                    msgDiv.className = 'add-employee-message error';
+                }
+            })
+            .catch(err => {
+                msgDiv.textContent = `❌ Fehler: ${err.message}`;
+                msgDiv.className = 'add-employee-message error';
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = 'Hinzufügen';
+            });
         }
 
         function copyToClipboard(text) {

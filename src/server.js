@@ -183,6 +183,37 @@ app.post('/api/admin/login', (req, res) => {
   }
 });
 
+// API: Add new employee
+app.post('/api/admin/employee', (req, res) => {
+  const { name } = req.body;
+  
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Name ist erforderlich' });
+  }
+
+  const id = uuidv4();
+  db.run(
+    'INSERT INTO employees (id, name, uuid) VALUES (?, ?, ?)',
+    [id, name.trim(), uuidv4()],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: 'Fehler beim Hinzufügen: ' + err.message });
+      }
+      res.json({ success: true, id, name: name.trim(), message: `Mitarbeiter "${name}" hinzugefügt!` });
+    }
+  );
+});
+
+// API: Get all employees (für Admin)
+app.get('/api/admin/employees', (req, res) => {
+  db.all('SELECT id, name FROM employees ORDER BY name', (err, employees) => {
+    if (err) {
+      return res.status(500).json({ error: 'Fehler beim Abrufen' });
+    }
+    res.json(employees);
+  });
+});
+
 // API: Get monthly report
 app.get('/api/admin/report/:year/:month', (req, res) => {
   const { year, month } = req.params;
