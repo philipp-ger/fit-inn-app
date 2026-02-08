@@ -48,10 +48,41 @@
             margin-bottom: 20px;
         }
 
+        .employee-selector {
+            margin-bottom: 30px;
+        }
+
+        .employee-selector label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .employee-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            cursor: pointer;
+        }
+
+        .employee-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         .employee-name {
             font-size: 24px;
             font-weight: 600;
             color: #333;
+            margin: 20px 0;
         }
 
         .date-info {
@@ -148,251 +179,208 @@
             grid-column: 1 / -1;
             background: #667eea;
             color: white;
-            padding: 15px;
         }
 
         .btn-save:hover {
-            background: #5568d3;
+            background: #5a67d8;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
 
         .btn-save:disabled {
-            background: #ccc;
+            background: #cbd5e0;
             cursor: not-allowed;
             transform: none;
         }
 
-        .status {
-            margin-top: 20px;
-            padding: 15px;
+        .message {
+            padding: 12px;
             border-radius: 8px;
+            margin: 15px 0;
             text-align: center;
             font-weight: 600;
             display: none;
         }
 
-        .status.success {
+        .message.success {
             background: #c6f6d5;
             color: #22543d;
-            border: 2px solid #9ae6b4;
             display: block;
         }
 
-        .status.error {
+        .message.error {
             background: #fed7d7;
             color: #742a2a;
-            border: 2px solid #fc8181;
             display: block;
         }
 
-        .today-entry {
-            background: #edf2f7;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            border-left: 4px solid #667eea;
-        }
-
-        .today-entry p {
-            color: #333;
-            font-size: 14px;
-            margin: 5px 0;
-        }
-
-        .today-entry strong {
-            color: #667eea;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px 15px;
-            }
-
-            .button-group {
-                grid-template-columns: 1fr;
-            }
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">⏱️ Fit-Inn</div>
-            <div class="subtitle">Zeiterfassung</div>
-            <div class="employee-name" id="employeeName">Loading...</div>
+            <div class="logo">⏱️</div>
+            <div class="subtitle">Fit-Inn Heldenbergen</div>
+            <h1>Zeiterfassung</h1>
         </div>
 
-        <div class="date-info">
-            <div class="date" id="dateDisplay">--</div>
-            <div class="weekday" id="weekdayDisplay">--</div>
+        <div class="employee-selector">
+            <label for="employeeSelect">Mitarbeiter wählen:</label>
+            <select id="employeeSelect">
+                <option value="">-- Bitte wählen --</option>
+            </select>
         </div>
 
-        <form id="timesheetForm">
-            <div class="time-input-group">
-                <label for="startTime">Start Zeit</label>
-                <input type="time" id="startTime" name="startTime">
+        <div id="timeForm" class="hidden">
+            <div class="employee-name" id="selectedEmployee"></div>
+
+            <div class="date-info">
+                <div class="date" id="currentDate"></div>
+                <div class="weekday" id="currentWeekday"></div>
             </div>
 
             <div class="time-input-group">
-                <label for="endTime">End Zeit</label>
-                <input type="time" id="endTime" name="endTime">
+                <label for="startTime">Startzeit:</label>
+                <input type="time" id="startTime" />
+            </div>
+
+            <div class="time-input-group">
+                <label for="endTime">Endzeit:</label>
+                <input type="time" id="endTime" />
             </div>
 
             <div class="button-group">
-                <button type="button" class="btn-start" onclick="setStartTime()">⏱️ Start</button>
-                <button type="button" class="btn-end" onclick="setEndTime()">⏸️ Ende</button>
+                <button class="btn-start" onclick="setStartNow()">Start jetzt</button>
+                <button class="btn-end" onclick="setEndNow()">Ende jetzt</button>
             </div>
 
-            <button type="submit" class="btn-save">💾 Speichern</button>
-        </form>
+            <button class="btn-save" onclick="saveEntry()">Speichern</button>
 
-        <div class="status" id="status"></div>
-
-        <div class="today-entry" id="todayEntry" style="display: none;">
-            <p><strong>Heute eingetragen:</strong></p>
-            <p>Start: <span id="entryStart">--</span></p>
-            <p>Ende: <span id="entryEnd">--</span></p>
-            <p>Stunden: <span id="entryHours">--</span></p>
+            <div id="message" class="message"></div>
         </div>
     </div>
 
     <script>
-        // Get UUID from URL
-        const uuid = window.location.pathname.split('/').pop();
-        let employeeId = null;
+        let selectedEmployeeId = null;
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeDate();
-            loadEmployee();
-            loadTodayEntry();
-            setInterval(loadTodayEntry, 30000); // Refresh every 30s
+        // Mitarbeiter-Liste laden
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/employees');
+                const employees = await response.json();
+                const select = document.getElementById('employeeSelect');
+                
+                employees.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = emp.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Fehler beim Laden der Mitarbeiter:', error);
+            }
+        }
+
+        // Wenn Mitarbeiter ausgewählt wird
+        document.getElementById('employeeSelect').addEventListener('change', function() {
+            selectedEmployeeId = this.value;
+            if (selectedEmployeeId) {
+                document.getElementById('timeForm').classList.remove('hidden');
+                updateEmployeeName();
+            } else {
+                document.getElementById('timeForm').classList.add('hidden');
+            }
         });
 
-        function initializeDate() {
+        // Mitarbeitername anzeigen
+        async function updateEmployeeName() {
+            try {
+                const response = await fetch(`/api/employee/${selectedEmployeeId}`);
+                const employee = await response.json();
+                document.getElementById('selectedEmployee').textContent = employee.name;
+            } catch (error) {
+                console.error('Fehler:', error);
+            }
+        }
+
+        // Datum anzeigen
+        function updateDate() {
             const now = new Date();
-            const dateStr = now.toLocaleDateString('de-DE', {
-                weekday: 'long',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateStr = now.toLocaleDateString('de-DE', options);
             
-            document.getElementById('dateDisplay').textContent = 
-                now.toLocaleDateString('de-DE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-            
-            document.getElementById('weekdayDisplay').textContent = dateStr.split(',')[0];
+            document.getElementById('currentDate').textContent = dateStr;
+            document.getElementById('currentWeekday').textContent = 
+                ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][now.getDay()];
         }
 
-        function loadEmployee() {
-            fetch(`/api/employee/${uuid}`)
-                .then(res => res.json())
-                .then(data => {
-                    employeeId = data.id;
-                    document.getElementById('employeeName').textContent = data.name;
-                })
-                .catch(err => {
-                    console.error('Error:', err);
-                    document.getElementById('employeeName').textContent = 'Fehler beim Laden';
-                });
-        }
-
-        function setStartTime() {
+        // Start jetzt
+        function setStartNow() {
             const now = new Date();
-            const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            document.getElementById('startTime').value = time;
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('startTime').value = `${hours}:${minutes}`;
         }
 
-        function setEndTime() {
+        // Ende jetzt
+        function setEndNow() {
             const now = new Date();
-            const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            document.getElementById('endTime').value = time;
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('endTime').value = `${hours}:${minutes}`;
         }
 
-        document.getElementById('timesheetForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+        // Eintrag speichern
+        async function saveEntry() {
+            if (!selectedEmployeeId) {
+                showMessage('Bitte wählen Sie einen Mitarbeiter!', 'error');
+                return;
+            }
+
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
 
-            if (!startTime && !endTime) {
-                showStatus('Bitte Start- oder Endzeit eintragen', 'error');
+            if (!startTime || !endTime) {
+                showMessage('Bitte geben Sie Start- und Endzeit ein!', 'error');
                 return;
             }
-
-            if (startTime && endTime && startTime >= endTime) {
-                showStatus('Endzeit muss nach Startzeit liegen', 'error');
-                return;
-            }
-
-            const today = new Date().toISOString().split('T')[0];
 
             try {
-                const response = await fetch('/api/timesheet', {
+                const response = await fetch('/api/timesheets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        employee_id: employeeId,
-                        date: today,
-                        start_time: startTime || null,
-                        end_time: endTime || null
+                        employee_id: selectedEmployeeId,
+                        start_time: startTime,
+                        end_time: endTime
                     })
                 });
 
                 if (response.ok) {
-                    showStatus('✅ Eintrag gespeichert!', 'success');
-                    setTimeout(() => {
-                        document.getElementById('startTime').value = '';
-                        document.getElementById('endTime').value = '';
-                        loadTodayEntry();
-                    }, 1500);
+                    showMessage('Zeiterfassung gespeichert! ✓', 'success');
+                    document.getElementById('startTime').value = '';
+                    document.getElementById('endTime').value = '';
                 } else {
-                    showStatus('Fehler beim Speichern', 'error');
+                    showMessage('Fehler beim Speichern!', 'error');
                 }
-            } catch (err) {
-                showStatus('Fehler beim Speichern: ' + err.message, 'error');
+            } catch (error) {
+                showMessage('Fehler: ' + error.message, 'error');
             }
-        });
-
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = message;
-            statusEl.className = 'status ' + type;
-            setTimeout(() => {
-                statusEl.className = 'status';
-            }, 4000);
         }
 
-        function loadTodayEntry() {
-            if (!employeeId) return;
-
-            fetch(`/api/timesheet/today/${employeeId}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.id) {
-                        document.getElementById('entryStart').textContent = data.start_time || '--';
-                        document.getElementById('entryEnd').textContent = data.end_time || '--';
-                        
-                        if (data.start_time && data.end_time) {
-                            const start = new Date(`2000-01-01 ${data.start_time}`);
-                            const end = new Date(`2000-01-01 ${data.end_time}`);
-                            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-                            document.getElementById('entryHours').textContent = hours + 'h';
-                        } else {
-                            document.getElementById('entryHours').textContent = '--';
-                        }
-                        
-                        document.getElementById('todayEntry').style.display = 'block';
-                    } else {
-                        document.getElementById('todayEntry').style.display = 'none';
-                    }
-                });
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => { msg.className = 'message'; }, 3000);
         }
+
+        // Beim Laden
+        loadEmployees();
+        updateDate();
     </script>
 </body>
 </html>

@@ -78,21 +78,25 @@ function initializeTestData() {
 
 // ==================== EMPLOYEE ROUTES ====================
 
-// Mitarbeiter-View
-app.get('/time/:uuid', (req, res) => {
-  const { uuid } = req.params;
-  db.get('SELECT id, name FROM employees WHERE uuid = ?', [uuid], (err, employee) => {
-    if (err || !employee) {
-      return res.status(404).send('Mitarbeiter nicht gefunden');
+// Mitarbeiter-View (neue Version - einfach mit Name-Dropdown)
+app.get('/time', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/employee.html'));
+});
+
+// API: Get all employees
+app.get('/api/employees', (req, res) => {
+  db.all('SELECT id, name FROM employees ORDER BY name', (err, employees) => {
+    if (err) {
+      return res.status(500).json({ error: 'Fehler beim Abrufen der Mitarbeiter' });
     }
-    res.sendFile(path.join(__dirname, '../public/employee.html'));
+    res.json(employees);
   });
 });
 
-// API: Get employee data
-app.get('/api/employee/:uuid', (req, res) => {
-  const { uuid } = req.params;
-  db.get('SELECT id, name FROM employees WHERE uuid = ?', [uuid], (err, employee) => {
+// API: Get employee data by ID
+app.get('/api/employee/:id', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT id, name FROM employees WHERE id = ?', [id], (err, employee) => {
     if (err || !employee) {
       return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
     }
