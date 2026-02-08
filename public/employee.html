@@ -280,21 +280,28 @@
         }
 
         /* ===== MESSAGES ===== */
-        .message {
+        .message-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             padding: 12px 16px;
-            border-radius: 8px;
-            margin: 12px 0;
             text-align: center;
-            font-weight: 600;
-            font-size: 13px;
-            display: none;
-            animation: slideIn 0.3s ease-out;
+            font-weight: 700;
+            font-size: 14px;
+            z-index: 1000;
+            pointer-events: none;
         }
 
-        @keyframes slideIn {
+        .message-container.show {
+            pointer-events: auto;
+            animation: slideInDown 0.4s ease-out;
+        }
+
+        @keyframes slideInDown {
             from {
                 opacity: 0;
-                transform: translateY(-10px);
+                transform: translateY(-20px);
             }
             to {
                 opacity: 1;
@@ -302,16 +309,31 @@
             }
         }
 
-        .message.success {
-            background: #c6f6d5;
-            color: #22543d;
-            display: block;
+        @keyframes slideOutUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
         }
 
-        .message.error {
-            background: #fed7d7;
-            color: #742a2a;
-            display: block;
+        .message-container.hide {
+            animation: slideOutUp 0.4s ease-out;
+        }
+
+        .message-container.success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+        }
+
+        .message-container.error {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
         }
 
         /* ===== HISTORY ===== */
@@ -450,6 +472,8 @@
     </style>
 </head>
 <body>
+    <div id="messageContainer" class="message-container"></div>
+
     <div class="container">
         <div class="header">
             <div class="logo">⏱️</div>
@@ -498,8 +522,6 @@
                     </div>
 
                     <button class="btn-save" onclick="saveEntry()">💾 Speichern</button>
-
-                    <div id="message" class="message"></div>
                 </div>
 
                 <!-- TAB: HISTORY -->
@@ -608,7 +630,6 @@
                 if (entry && entry.start_time && entry.end_time) {
                     document.getElementById('startTime').value = entry.start_time;
                     document.getElementById('endTime').value = entry.end_time;
-                    showMessage('✓ Bestehende Zeiten geladen', 'success');
                 } else {
                     document.getElementById('startTime').value = '';
                     document.getElementById('endTime').value = '';
@@ -662,8 +683,9 @@
         function loadDateFromHistory(date) {
             document.getElementById('workDate').value = date;
             updateWeekday();
-            loadEntryForDate();
             switchTab('today');
+            loadEntryForDate();
+            showMessage('📝 Eintrag geladen - bearbeitbar', 'success');
         }
 
         // Wochentag auslesen
@@ -693,7 +715,7 @@
         // Eintrag speichern
         async function saveEntry() {
             if (!selectedEmployeeId) {
-                showMessage('Mitarbeiter auswählen!', 'error');
+                showMessage('Mitarbeiter wählen!', 'error');
                 return;
             }
 
@@ -719,22 +741,32 @@
                 });
 
                 if (response.ok) {
-                    showMessage('✓ Gespeichert!', 'success');
-                    loadMonthHistory();
+                    showMessage('✅ Zeiterfassung gespeichert!', 'success');
+                    setTimeout(() => {
+                        loadMonthHistory();
+                    }, 500);
                 } else {
                     const error = await response.json();
-                    showMessage('Fehler: ' + (error.error || 'Unbekannter Fehler'), 'error');
+                    showMessage('❌ Fehler beim Speichern', 'error');
                 }
             } catch (error) {
-                showMessage('Fehler: ' + error.message, 'error');
+                showMessage('❌ Fehler beim Speichern', 'error');
             }
         }
 
         function showMessage(text, type) {
-            const msg = document.getElementById('message');
+            const msg = document.getElementById('messageContainer');
             msg.textContent = text;
-            msg.className = `message ${type}`;
-            setTimeout(() => { msg.className = 'message'; }, 3000);
+            msg.className = `message-container ${type} show`;
+            
+            // Auto-hide nach 4 Sekunden
+            setTimeout(() => {
+                msg.classList.remove('show');
+                msg.classList.add('hide');
+                setTimeout(() => {
+                    msg.className = 'message-container';
+                }, 400);
+            }, 4000);
         }
 
         // Init
