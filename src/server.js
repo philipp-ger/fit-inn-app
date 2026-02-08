@@ -25,7 +25,8 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS employees (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
       uuid TEXT UNIQUE NOT NULL,
       hourly_wage REAL DEFAULT 12.00,
       fixed_salary REAL DEFAULT 0,
@@ -80,6 +81,9 @@ db.serialize(() => {
     const hasEmploymentType = columns.some(col => col.name === 'employment_type');
     const hasSalaryType = columns.some(col => col.name === 'salary_type');
     const hasFixedSalary = columns.some(col => col.name === 'fixed_salary');
+    const hasFirstName = columns.some(col => col.name === 'first_name');
+    const hasLastName = columns.some(col => col.name === 'last_name');
+    const hasName = columns.some(col => col.name === 'name');
 
     if (!hasHourlyWage) {
       db.run('ALTER TABLE employees ADD COLUMN hourly_wage REAL DEFAULT 12.00', (err) => {
@@ -106,6 +110,33 @@ db.serialize(() => {
       db.run('ALTER TABLE employees ADD COLUMN fixed_salary REAL DEFAULT 0', (err) => {
         if (err) console.error('Fehler beim Hinzufügen von fixed_salary:', err);
         else console.log('✅ Spalte fixed_salary hinzugefügt');
+      });
+    }
+
+    // Migration: name -> first_name, last_name
+    if (hasName && !hasFirstName && !hasLastName) {
+      db.run('ALTER TABLE employees ADD COLUMN first_name TEXT', (err) => {
+        if (err) console.error('Fehler beim Hinzufügen von first_name:', err);
+        else {
+          console.log('✅ Spalte first_name hinzugefügt');
+          db.run('ALTER TABLE employees ADD COLUMN last_name TEXT', (err) => {
+            if (err) console.error('Fehler beim Hinzufügen von last_name:', err);
+            else {
+              console.log('✅ Spalte last_name hinzugefügt');
+              // Split existing names
+              db.all('SELECT id, name FROM employees WHERE first_name IS NULL', (err, rows) => {
+                if (err || !rows) return;
+                rows.forEach(row => {
+                  const parts = row.name.trim().split(' ');
+                  const firstName = parts[0] || '';
+                  const lastName = parts.slice(1).join(' ') || '';
+                  db.run('UPDATE employees SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, row.id]);
+                });
+                console.log('✅ Namen migriert zu Vor- und Nachname');
+              });
+            }
+          });
+        }
       });
     }
   });
@@ -325,28 +356,29 @@ app.post('/api/admin/login', (req, res) => {
 
 // API: Add new employee
 app.post('/api/admin/employee', (req, res) => {
-  const { name } = req.body;
+  const { first_name, last_name } = req.body;
   
-  if (!name || name.trim() === '') {
-    return res.status(400).json({ error: 'Name ist erforderlich' });
+  if (!first_name || !last_name || first_name.trim() === '' || last_name.trim() === '') {
+    return res.status(400).json({ error: 'Vor- und Nachname sind erforderlich' });
   }
 
   const id = uuidv4();
   db.run(
-    'INSERT INTO employees (id, name, uuid) VALUES (?, ?, ?)',
-    [id, name.trim(), uuidv4()],
+    'INSERT INTO employees (id, first_name, last_name, uuid) VALUES (?, ?, ?, ?)',
+    [id, first_name.trim(), last_name.trim(), uuidv4()],
     function(err) {
       if (err) {
         return res.status(500).json({ error: 'Fehler beim Hinzufügen: ' + err.message });
       }
-      res.json({ success: true, id, name: name.trim(), message: `Mitarbeiter "${name}" hinzugefügt!` });
+      const fullName = `${first_name.trim()} ${last_name.trim()}`;
+      res.json({ success: true, id, first_name: first_name.trim(), last_name: last_name.trim(), message: `Mitarbeiter "${fullName}" hinzugefügt!` });
     }
   );
 });
 
 // API: Get all employees (für Admin)
 app.get('/api/admin/employees', (req, res) => {
-  db.all('SELECT id, name, hourly_wage, fixed_salary, salary_type, employment_type FROM employees ORDER BY name', (err, employees) => {
+  db.all('SELECT id, first_name, last_name, hourly_wage, fixed_salary, salary_type, employment_type FROM employees ORDER BY first_name, last_name', (err, employees) => {
     if (err) {
       return res.status(500).json({ error: 'Fehler beim Abrufen' });
     }
@@ -394,7 +426,8 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
     db.all(
       `SELECT 
          e.id,
-         e.name,
+         e.first_name,
+         e.last_name,
          esh.hourly_wage,
          esh.fixed_salary,
          esh.salary_type,
@@ -405,7 +438,7 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
        LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
        LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
        WHERE esh.id IS NOT NULL
-       ORDER BY e.name, t.date`,
+       ORDER BY e.first_name, e.last_name, t.date`,
       [year, month, datePattern],
       (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -415,7 +448,9 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
       rows.forEach(row => {
         if (!report[row.id]) {
           report[row.id] = {
-            name: row.name,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            name: `${row.first_name} ${row.last_name}`,
             salary_type: row.salary_type || 'hourly',
             hourly_wage: row.hourly_wage || 0,
             fixed_salary: row.fixed_salary || 0,
@@ -493,7 +528,8 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
     db.all(
       `SELECT 
          e.id,
-         e.name,
+         e.first_name,
+         e.last_name,
          esh.hourly_wage,
          esh.fixed_salary,
          esh.salary_type,
@@ -504,7 +540,7 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
        LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
        LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
        WHERE esh.id IS NOT NULL
-       ORDER BY e.name, t.date`,
+       ORDER BY e.first_name, e.last_name, t.date`,
       [year, month, datePattern],
       (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -514,7 +550,9 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
       rows.forEach(row => {
         if (!report[row.id]) {
           report[row.id] = {
-            name: row.name,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            name: `${row.first_name} ${row.last_name}`,
             salary_type: row.salary_type || 'hourly',
             hourly_wage: row.hourly_wage || 0,
             fixed_salary: row.fixed_salary || 0,
@@ -547,14 +585,14 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
       });
 
       // CSV generieren
-      let csv = 'Mitarbeitername,Gehaltstyp,Stundenlohn/Festgehalt,Arbeitstage,Gesamtstunden,Gesamtverdienst\n';
+      let csv = 'Mitarbeitername,Gehaltstyp,Stundenlohn/Festgehalt,Arbeitstage,Gesamtstunden,Gesamtverdienst,Jahr,Monat\n';
       reportArray.forEach(emp => {
         const workDays = Object.keys(emp.days).length;
         const salaryInfo = emp.salary_type === 'hourly' 
           ? `${emp.hourly_wage.toFixed(2)}€/h`
           : `${emp.fixed_salary.toFixed(2)}€`;
         const salaryType = emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt';
-        csv += `"${emp.name}",${salaryType},"${salaryInfo}",${workDays},${emp.totalHours.toFixed(2)},${emp.totalWage.toFixed(2)}€\n`;
+        csv += `"${emp.name}",${salaryType},"${salaryInfo}",${workDays},${emp.totalHours.toFixed(2)},${emp.totalWage.toFixed(2)}€,${year},${month}\n`;
       });
 
       const totalHours = reportArray.reduce((sum, emp) => sum + emp.totalHours, 0);
@@ -572,10 +610,10 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
 // API: Update employee
 app.put('/api/admin/employee/:id', (req, res) => {
   const { id } = req.params;
-  const { name, hourly_wage, fixed_salary, salary_type, employment_type } = req.body;
+  const { first_name, last_name, hourly_wage, fixed_salary, salary_type, employment_type } = req.body;
 
-  if (!name || name.trim() === '') {
-    return res.status(400).json({ error: 'Name ist erforderlich' });
+  if (!first_name || !last_name || first_name.trim() === '' || last_name.trim() === '') {
+    return res.status(400).json({ error: 'Vor- und Nachname sind erforderlich' });
   }
 
   const salaryTypeValue = salary_type || 'hourly';
@@ -622,8 +660,8 @@ app.put('/api/admin/employee/:id', (req, res) => {
 
           // Schritt 2: Update Mitarbeiter
           db.run(
-            'UPDATE employees SET name = ?, hourly_wage = ?, fixed_salary = ?, salary_type = ?, employment_type = ? WHERE id = ?',
-            [name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
+            'UPDATE employees SET first_name = ?, last_name = ?, hourly_wage = ?, fixed_salary = ?, salary_type = ?, employment_type = ? WHERE id = ?',
+            [first_name.trim(), last_name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
             (err) => {
               if (err) {
                 return res.status(500).json({ error: 'Fehler beim Aktualisieren des Mitarbeiters: ' + err.message });

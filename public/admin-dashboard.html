@@ -534,7 +534,8 @@
         <div class="add-employee-section">
             <h2>➕ Neuen Mitarbeiter hinzufügen</h2>
             <div class="add-employee-form">
-                <input type="text" id="newEmployeeName" placeholder="Mitarbeitername eingeben..." maxlength="100">
+                <input type="text" id="newEmployeeFirstName" placeholder="Vorname..." maxlength="100" style="flex: 0.5;">
+                <input type="text" id="newEmployeeLastName" placeholder="Nachname..." maxlength="100" style="flex: 0.5;">
                 <button class="btn-add-employee" onclick="addNewEmployee()">Hinzufügen</button>
             </div>
             <div id="addEmployeeMessage" class="add-employee-message"></div>
@@ -634,13 +635,14 @@
                 const salaryInfo = emp.salary_type === 'hourly' 
                     ? `${emp.totalHours.toFixed(2)}h × ${emp.hourly_wage.toFixed(2)}€ = <strong>${emp.totalWage.toFixed(2)}€</strong>`
                     : `Festgehalt: <strong>${emp.totalWage.toFixed(2)}€</strong>`;
+                const fullName = `${emp.first_name} ${emp.last_name}`;
                 
                 html += `
                     <tr>
                         <td colspan="3" style="padding: 0;">
                             <div class="employee-header" onclick="toggleEmployee('${uniqueId}')">
                                 <div class="employee-name-section">
-                                    <span class="name">${emp.name}</span>
+                                    <span class="name">${fullName}</span>
                                     <span class="employee-total-hours">${emp.totalHours.toFixed(2)}h</span>
                                 </div>
                                 <span style="color: #667eea; font-weight: 600; margin-right: 20px;">${emp.totalWage.toFixed(2)}€</span>
@@ -722,12 +724,13 @@
                         const salaryDisplay = salaryType === 'hourly' 
                             ? `${emp.hourly_wage || 12.00}€/h` 
                             : `${emp.fixed_salary || 0}€/Monat`;
+                        const fullName = `${emp.first_name} ${emp.last_name}`;
                         
                         list.innerHTML += `
                             <div class="employee-item">
                                 <div style="flex: 1;">
                                     <div>
-                                        <span class="name">${emp.name}</span>
+                                        <span class="name">${fullName}</span>
                                         <span style="color: #999; font-size: 12px; margin-left: 10px;">ID: ${emp.id.substring(0, 8)}...</span>
                                     </div>
                                     <div style="font-size: 12px; color: #666; margin-top: 5px;">
@@ -735,8 +738,8 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 8px;">
-                                    <button onclick="openEditModal('${emp.id}', '${emp.name}', ${emp.hourly_wage || 12.00}, ${emp.fixed_salary || 0}, '${salaryType}', '${emp.employment_type || 'Festangestellter'}')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">✏️ Bearbeiten</button>
-                                    <button onclick="deleteEmployee('${emp.id}', '${emp.name}')" style="padding: 6px 12px; background: #f56565; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Löschen</button>
+                                    <button onclick="openEditModal('${emp.id}', '${emp.first_name}', '${emp.last_name}', ${emp.hourly_wage || 12.00}, ${emp.fixed_salary || 0}, '${salaryType}', '${emp.employment_type || 'Festangestellter'}')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">✏️ Bearbeiten</button>
+                                    <button onclick="deleteEmployee('${emp.id}', '${fullName}')" style="padding: 6px 12px; background: #f56565; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Löschen</button>
                                 </div>
                             </div>
                         `;
@@ -793,12 +796,14 @@
         }
 
         function addNewEmployee() {
-            const input = document.getElementById('newEmployeeName');
-            const name = input.value.trim();
+            const firstNameInput = document.getElementById('newEmployeeFirstName');
+            const lastNameInput = document.getElementById('newEmployeeLastName');
+            const first_name = firstNameInput.value.trim();
+            const last_name = lastNameInput.value.trim();
             const msgDiv = document.getElementById('addEmployeeMessage');
 
-            if (!name) {
-                msgDiv.textContent = '❌ Bitte geben Sie einen Namen ein!';
+            if (!first_name || !last_name) {
+                msgDiv.textContent = '❌ Bitte geben Sie Vor- und Nachname ein!';
                 msgDiv.className = 'add-employee-message error';
                 return;
             }
@@ -810,14 +815,15 @@
             fetch('/api/admin/employee', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ first_name, last_name })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
                     msgDiv.textContent = `✅ ${data.message}`;
                     msgDiv.className = 'add-employee-message success';
-                    input.value = '';
+                    firstNameInput.value = '';
+                    lastNameInput.value = '';
                     loadEmployeeLinks();
                     setTimeout(() => {
                         msgDiv.className = 'add-employee-message';
@@ -857,9 +863,10 @@
                 });
         }
 
-        function openEditModal(id, name, hourly_wage, fixed_salary, salary_type, employment_type) {
+        function openEditModal(id, first_name, last_name, hourly_wage, fixed_salary, salary_type, employment_type) {
             document.getElementById('editEmployeeId').value = id;
-            document.getElementById('editEmployeeName').value = name;
+            document.getElementById('editEmployeeFirstName').value = first_name || '';
+            document.getElementById('editEmployeeLastName').value = last_name || '';
             document.getElementById('editHourlyWage').value = hourly_wage || 12.00;
             document.getElementById('editFixedSalary').value = fixed_salary || 0;
             document.getElementById('editEmploymentType').value = employment_type || 'Festangestellter';
@@ -884,21 +891,22 @@
 
         function updateEmployee() {
             const id = document.getElementById('editEmployeeId').value;
-            const name = document.getElementById('editEmployeeName').value.trim();
+            const first_name = document.getElementById('editEmployeeFirstName').value.trim();
+            const last_name = document.getElementById('editEmployeeLastName').value.trim();
             const employment_type = document.getElementById('editEmploymentType').value;
             const salary_type = document.getElementById('salarytypeHourly').checked ? 'hourly' : 'fixed';
             const hourly_wage = parseFloat(document.getElementById('editHourlyWage').value) || 12.00;
             const fixed_salary = parseFloat(document.getElementById('editFixedSalary').value) || 0;
 
-            if (!name) {
-                alert('❌ Bitte geben Sie einen Namen ein!');
+            if (!first_name || !last_name) {
+                alert('❌ Bitte geben Sie Vor- und Nachname ein!');
                 return;
             }
 
             fetch(`/api/admin/employee/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, hourly_wage, fixed_salary, salary_type, employment_type })
+                body: JSON.stringify({ first_name, last_name, hourly_wage, fixed_salary, salary_type, employment_type })
             })
             .then(res => res.json())
             .then(data => {
@@ -949,8 +957,13 @@
             <h2 style="margin-bottom: 20px; color: #333;">Mitarbeiter bearbeiten</h2>
             
             <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Name</label>
-                <input type="text" id="editEmployeeName" placeholder="Mitarbeitername" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Vorname</label>
+                <input type="text" id="editEmployeeFirstName" placeholder="Vorname" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Nachname</label>
+                <input type="text" id="editEmployeeLastName" placeholder="Nachname" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
             </div>
 
             <div style="margin-bottom: 15px;">
