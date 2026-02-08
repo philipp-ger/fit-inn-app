@@ -161,18 +161,16 @@ app.get('/api/timesheet/today/:employee_id', (req, res) => {
 
 // API: Save timesheet entry
 app.post('/api/timesheets', (req, res) => {
-  const { employee_id, start_time, end_time } = req.body;
+  const { employee_id, date, start_time, end_time } = req.body;
   
-  if (!employee_id || !start_time || !end_time) {
-    return res.status(400).json({ error: 'Mitarbeiter, Start- und Endzeit sind erforderlich' });
+  if (!employee_id || !date || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Mitarbeiter, Datum, Start- und Endzeit sind erforderlich' });
   }
 
-  const today = new Date().toISOString().split('T')[0];
-
-  // Überprüfe ob bereits ein Eintrag für heute existiert
+  // Überprüfe ob bereits ein Eintrag für dieses Datum existiert
   db.get(
     'SELECT id FROM timesheets WHERE employee_id = ? AND date = ?',
-    [employee_id, today],
+    [employee_id, date],
     (err, row) => {
       if (err) {
         return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
@@ -192,7 +190,7 @@ app.post('/api/timesheets', (req, res) => {
         // Insert new entry
         db.run(
           'INSERT INTO timesheets (employee_id, date, start_time, end_time) VALUES (?, ?, ?, ?)',
-          [employee_id, today, start_time, end_time],
+          [employee_id, date, start_time, end_time],
           function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, message: 'Zeiterfassung gespeichert!' });
