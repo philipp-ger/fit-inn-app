@@ -489,6 +489,7 @@
     <div class="header">
         <div class="logo">📊 Fit-Inn Dashboard</div>
         <div class="header-right">
+            <button class="btn-export" onclick="openAddEmployeeModal()" style="background: #48bb78;">➕ Mitarbeiter</button>
             <button class="btn-export" onclick="exportCSV()">📥 Exportieren</button>
             <button class="btn-logout" onclick="logout()">🚪 Logout</button>
         </div>
@@ -529,45 +530,6 @@
                 <button class="btn-add-employee" onclick="importSalaryData()">Importieren</button>
             </div>
             <div id="importMessage" class="add-employee-message"></div>
-        </div>
-
-        <div class="add-employee-section">
-            <h2>➕ Neuen Mitarbeiter hinzufügen</h2>
-            <div class="add-employee-form" style="flex-wrap: wrap;">
-                <input type="text" id="newEmployeeFirstName" placeholder="Vorname..." maxlength="100" style="flex: 1; min-width: 150px;">
-                <input type="text" id="newEmployeeLastName" placeholder="Nachname..." maxlength="100" style="flex: 1; min-width: 150px;">
-            </div>
-            <div class="add-employee-form" style="flex-wrap: wrap; margin-top: 10px;">
-                <label style="flex: 1; min-width: 150px; display: flex; align-items: center; gap: 8px;">
-                    <input type="radio" name="newSalaryType" value="hourly" checked>
-                    <span>Stundenlohn (€/h)</span>
-                </label>
-                <input type="number" id="newEmployeeHourlyWage" placeholder="14.00" step="0.01" min="0" style="flex: 1; min-width: 120px; padding: 10px; border: 2px solid #ddd; border-radius: 6px;">
-            </div>
-            <div class="add-employee-form" style="flex-wrap: wrap; margin-top: 10px;">
-                <label style="flex: 1; min-width: 150px; display: flex; align-items: center; gap: 8px;">
-                    <input type="radio" name="newSalaryType" value="fixed">
-                    <span>Festgehalt (€/Monat)</span>
-                </label>
-                <input type="number" id="newEmployeeFixedSalary" placeholder="2500.00" step="0.01" min="0" style="flex: 1; min-width: 120px; padding: 10px; border: 2px solid #ddd; border-radius: 6px; display: none;">
-            </div>
-            <script>
-                document.querySelectorAll('input[name="newSalaryType"]').forEach(radio => {
-                    radio.addEventListener('change', (e) => {
-                        const isHourly = e.target.value === 'hourly';
-                        document.getElementById('newEmployeeHourlyWage').style.display = isHourly ? 'block' : 'none';
-                        document.getElementById('newEmployeeFixedSalary').style.display = isHourly ? 'none' : 'block';
-                    });
-                });
-            </script>
-            <div class="add-employee-form" style="flex-wrap: wrap; margin-top: 10px;">
-                <select id="newEmployeeType" style="flex: 1; min-width: 150px; padding: 10px; border: 2px solid #ddd; border-radius: 6px;">
-                    <option value="Festangestellter">📋 Festangestellter</option>
-                    <option value="Minijob">🎯 Minijob</option>
-                </select>
-                <button class="btn-add-employee" onclick="addNewEmployee()" style="flex: 0.5;">Hinzufügen</button>
-            </div>
-            <div id="addEmployeeMessage" class="add-employee-message"></div>
         </div>
 
         <div class="employee-links">
@@ -830,27 +792,42 @@
             reader.readAsText(file);
         }
 
+        function openAddEmployeeModal() {
+            document.getElementById('modalFirstName').value = '';
+            document.getElementById('modalLastName').value = '';
+            document.getElementById('modalHourlyWage').value = '12.00';
+            document.getElementById('modalFixedSalary').value = '2500.00';
+            document.getElementById('modalSalaryTypeHourly').checked = true;
+            document.getElementById('modalEmploymentType').value = 'Festangestellter';
+            document.getElementById('addEmployeeModal').style.display = 'flex';
+            updateAddEmployeeSalaryUI();
+        }
+
+        function closeAddEmployeeModal() {
+            document.getElementById('addEmployeeModal').style.display = 'none';
+        }
+
+        function updateAddEmployeeSalaryUI() {
+            const isHourly = document.getElementById('modalSalaryTypeHourly').checked;
+            document.getElementById('modalHourlyWageGroup').style.display = isHourly ? 'block' : 'none';
+            document.getElementById('modalFixedSalaryGroup').style.display = isHourly ? 'none' : 'block';
+        }
+
         function addNewEmployee() {
-            const firstNameInput = document.getElementById('newEmployeeFirstName');
-            const lastNameInput = document.getElementById('newEmployeeLastName');
+            const firstNameInput = document.getElementById('modalFirstName');
+            const lastNameInput = document.getElementById('modalLastName');
             const first_name = firstNameInput.value.trim();
             const last_name = lastNameInput.value.trim();
-            const msgDiv = document.getElementById('addEmployeeMessage');
 
             if (!first_name || !last_name) {
-                msgDiv.textContent = '❌ Bitte geben Sie Vor- und Nachname ein!';
-                msgDiv.className = 'add-employee-message error';
+                alert('❌ Bitte geben Sie Vor- und Nachname ein!');
                 return;
             }
 
-            const salary_type = document.querySelector('input[name="newSalaryType"]:checked').value;
-            const hourly_wage = parseFloat(document.getElementById('newEmployeeHourlyWage').value) || 12.00;
-            const fixed_salary = parseFloat(document.getElementById('newEmployeeFixedSalary').value) || 0;
-            const employment_type = document.getElementById('newEmployeeType').value;
-
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = 'Wird hinzugefügt...';
+            const salary_type = document.getElementById('modalSalaryTypeHourly').checked ? 'hourly' : 'fixed';
+            const hourly_wage = parseFloat(document.getElementById('modalHourlyWage').value) || 12.00;
+            const fixed_salary = parseFloat(document.getElementById('modalFixedSalary').value) || 0;
+            const employment_type = document.getElementById('modalEmploymentType').value;
 
             fetch('/api/admin/employee', {
                 method: 'POST',
@@ -860,28 +837,15 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    msgDiv.textContent = `✅ ${data.message}`;
-                    msgDiv.className = 'add-employee-message success';
-                    firstNameInput.value = '';
-                    lastNameInput.value = '';
-                    document.getElementById('newEmployeeHourlyWage').value = '';
-                    document.getElementById('newEmployeeFixedSalary').value = '';
+                    alert(`✅ ${data.message}`);
+                    closeAddEmployeeModal();
                     loadEmployeeLinks();
-                    setTimeout(() => {
-                        msgDiv.className = 'add-employee-message';
-                    }, 3000);
                 } else {
-                    msgDiv.textContent = `❌ Fehler: ${data.error}`;
-                    msgDiv.className = 'add-employee-message error';
+                    alert(`❌ Fehler: ${data.error}`);
                 }
             })
             .catch(err => {
-                msgDiv.textContent = `❌ Fehler: ${err.message}`;
-                msgDiv.className = 'add-employee-message error';
-            })
-            .finally(() => {
-                btn.disabled = false;
-                btn.textContent = 'Hinzufügen';
+                alert(`❌ Fehler: ${err.message}`);
             });
         }
 
@@ -986,9 +950,13 @@
 
         // Modal bei Klick außerhalb schließen
         window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target === modal) {
+            const editModal = document.getElementById('editModal');
+            const addModal = document.getElementById('addEmployeeModal');
+            if (event.target === editModal) {
                 closeEditModal();
+            }
+            if (event.target === addModal) {
+                closeAddEmployeeModal();
             }
         }
 
@@ -1083,6 +1051,60 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="closeTimesheetEditModal()" style="padding: 10px 20px; background: #cbd5e0; color: #333; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Abbrechen</button>
                 <button onclick="updateTimesheet()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div id="addEmployeeModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; overflow-y: auto;">
+        <div style="background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: 20px auto;">
+            <h2 style="margin-bottom: 20px; color: #333;">➕ Neuen Mitarbeiter hinzufügen</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Vorname</label>
+                <input type="text" id="modalFirstName" placeholder="Vorname" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Nachname</label>
+                <input type="text" id="modalLastName" placeholder="Nachname" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #333;">Gehalt/Lohn</label>
+                <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" id="modalSalaryTypeHourly" name="modalSalaryType" value="hourly" checked onchange="updateAddEmployeeSalaryUI()" style="margin-right: 8px;">
+                        <span style="color: #333;">Stundenlohn</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" id="modalSalaryTypeFixed" name="modalSalaryType" value="fixed" onchange="updateAddEmployeeSalaryUI()" style="margin-right: 8px;">
+                        <span style="color: #333;">Festgehalt</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="modalHourlyWageGroup" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Stundenlohn (€)</label>
+                <input type="number" id="modalHourlyWage" placeholder="12.00" step="0.01" min="0" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+            </div>
+
+            <div id="modalFixedSalaryGroup" style="display: none; margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Festgehalt pro Monat (€)</label>
+                <input type="number" id="modalFixedSalary" placeholder="2500.00" step="0.01" min="0" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Anstellungsart</label>
+                <select id="modalEmploymentType" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    <option value="Festangestellter">Festangestellter</option>
+                    <option value="Minijob">Minijob</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeAddEmployeeModal()" style="padding: 10px 20px; background: #cbd5e0; color: #333; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Abbrechen</button>
+                <button onclick="addNewEmployee()" style="padding: 10px 20px; background: #48bb78; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Hinzufügen</button>
             </div>
         </div>
     </div>
