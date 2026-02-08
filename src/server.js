@@ -385,13 +385,17 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
 
       const totalHoursAll = reportArray.reduce((sum, emp) => sum + emp.totalHours, 0);
       const totalWageAll = reportArray.reduce((sum, emp) => sum + emp.totalWage, 0);
+      const totalWageHourly = reportArray.filter(emp => emp.salary_type === 'hourly').reduce((sum, emp) => sum + emp.totalWage, 0);
+      const totalWageFixed = reportArray.filter(emp => emp.salary_type === 'fixed').reduce((sum, emp) => sum + emp.totalWage, 0);
 
       res.json({
         year,
         month: parseInt(month),
         employees: reportArray,
         totalHours: totalHoursAll,
-        totalWage: totalWageAll
+        totalWage: totalWageAll,
+        totalWageHourly: totalWageHourly,
+        totalWageFixed: totalWageFixed
       });
     }
   );

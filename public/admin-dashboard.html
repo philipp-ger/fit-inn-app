@@ -660,7 +660,17 @@
                 <tr class="summary-total">
                     <td style="padding: 15px; text-align: left; font-weight: 600;">GESAMT MONAT</td>
                     <td style="padding: 15px; text-align: left; font-weight: 600;"><span class="hours">${data.totalHours.toFixed(2)}h</span></td>
-                    <td style="padding: 15px; text-align: left; font-weight: 600; color: #667eea;"><span class="wage">${data.totalWage.toFixed(2)}€</span></td>
+                    <td style="padding: 15px; text-align: left; font-weight: 600; color: #667eea;">
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #48bb78;">Stundenlohn: ${data.totalWageHourly.toFixed(2)}€</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #9f7aea;">Festgehalt: ${data.totalWageFixed.toFixed(2)}€</span>
+                        </div>
+                        <div style="border-top: 1px solid #ddd; padding-top: 8px;">
+                            <span style="color: #667eea;">Summe: ${data.totalWage.toFixed(2)}€</span>
+                        </div>
+                    </td>
                 </tr>
             </tbody></table>`;
 
