@@ -35,6 +35,22 @@ db.serialize(() => {
     )
   `);
 
+  // Tabelle Lohnhistorie (pro Monat)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS employee_salary_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      hourly_wage REAL DEFAULT 12.00,
+      fixed_salary REAL DEFAULT 0,
+      salary_type TEXT DEFAULT 'hourly',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(employee_id) REFERENCES employees(id),
+      UNIQUE(employee_id, year, month)
+    )
+  `);
+
   // Tabelle Zeiteinträge
   db.run(`
     CREATE TABLE IF NOT EXISTS timesheets (
@@ -92,6 +108,29 @@ db.serialize(() => {
         else console.log('✅ Spalte fixed_salary hinzugefügt');
       });
     }
+  });
+
+  // Migration: Erstelle Lohnhistorie aus aktuellen Löhnen
+  db.serialize(() => {
+    // Kopiere aktuelle Löhne als Lohnhistorie für aktuellen Monat (falls noch nicht vorhanden)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    db.all('SELECT id, hourly_wage, fixed_salary, salary_type FROM employees', (err, employees) => {
+      if (err || !employees) return;
+
+      employees.forEach(emp => {
+        db.run(
+          `INSERT OR IGNORE INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [emp.id, year, month, emp.hourly_wage, emp.fixed_salary, emp.salary_type],
+          (err) => {
+            if (!err) console.log(`✅ Lohnhistorie für ${emp.id} migriert`);
+          }
+        );
+      });
+    });
   });
 });
 
@@ -337,16 +376,17 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
     `SELECT 
        e.id,
        e.name,
-       e.hourly_wage,
-       e.fixed_salary,
-       e.salary_type,
+       COALESCE(esh.hourly_wage, e.hourly_wage) as hourly_wage,
+       COALESCE(esh.fixed_salary, e.fixed_salary) as fixed_salary,
+       COALESCE(esh.salary_type, e.salary_type) as salary_type,
        t.date,
        t.start_time,
        t.end_time
      FROM employees e
+     LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
      LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
      ORDER BY e.name, t.date`,
-    [datePattern],
+    [year, month, datePattern],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
 
@@ -415,16 +455,17 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
     `SELECT 
        e.id,
        e.name,
-       e.hourly_wage,
-       e.fixed_salary,
-       e.salary_type,
+       COALESCE(esh.hourly_wage, e.hourly_wage) as hourly_wage,
+       COALESCE(esh.fixed_salary, e.fixed_salary) as fixed_salary,
+       COALESCE(esh.salary_type, e.salary_type) as salary_type,
        t.date,
        t.start_time,
        t.end_time
      FROM employees e
+     LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
      LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
      ORDER BY e.name, t.date`,
-    [datePattern],
+    [year, month, datePattern],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
 
@@ -500,16 +541,39 @@ app.put('/api/admin/employee/:id', (req, res) => {
   const wageValue = salaryTypeValue === 'hourly' ? (hourly_wage || 12.00) : 0;
   const salaryValue = salaryTypeValue === 'fixed' ? (fixed_salary || 0) : 0;
 
-  db.run(
-    'UPDATE employees SET name = ?, hourly_wage = ?, fixed_salary = ?, salary_type = ?, employment_type = ? WHERE id = ?',
-    [name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Fehler beim Aktualisieren: ' + err.message });
+  // Aktuelles Jahr und Monat
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // Transaction: Update Employee und speichere Lohnhistorie
+  db.serialize(() => {
+    // Update Employee
+    db.run(
+      'UPDATE employees SET name = ?, hourly_wage = ?, fixed_salary = ?, salary_type = ?, employment_type = ? WHERE id = ?',
+      [name.trim(), wageValue, salaryValue, salaryTypeValue, employment_type || 'Festangestellter', id],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: 'Fehler beim Aktualisieren: ' + err.message });
+        }
+
+        // Speichere/Update Lohnhistorie für diesen Monat
+        db.run(
+          `INSERT INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(employee_id, year, month) DO UPDATE SET
+           hourly_wage = ?, fixed_salary = ?, salary_type = ?`,
+          [id, year, month, wageValue, salaryValue, salaryTypeValue, wageValue, salaryValue, salaryTypeValue],
+          function(err2) {
+            if (err2) {
+              return res.status(500).json({ error: 'Fehler beim Speichern der Lohnhistorie: ' + err2.message });
+            }
+            res.json({ success: true, message: 'Mitarbeiter aktualisiert!' });
+          }
+        );
       }
-      res.json({ success: true, message: 'Mitarbeiter aktualisiert!' });
-    }
-  );
+    );
+  });
 });
 
 // ==================== START SERVER ====================
