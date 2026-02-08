@@ -654,13 +654,15 @@
                 const historyList = document.getElementById('historyList');
                 historyList.innerHTML = '';
 
-                const employee = data.employees.find(e => e.name === document.getElementById('selectedEmployee').textContent);
+                // 🔧 FIX: Suche nach ID statt Name (Fehlerquelle!)
+                const employee = data.employees.find(e => e.id === selectedEmployeeId);
                 
                 if (employee && Object.keys(employee.days).length > 0) {
                     const daysArray = Object.entries(employee.days).sort((a, b) => a[0].localeCompare(b[0]));
                     
-                    daysArray.forEach(([date, hours]) => {
+                    daysArray.forEach(([date, hoursObj]) => {
                         const weekday = getWeekdayName(date);
+                        const hours = hoursObj.hours || hoursObj;
                         const item = document.createElement('div');
                         item.className = 'history-item';
                         item.innerHTML = `
@@ -743,7 +745,9 @@
                 if (response.ok) {
                     showMessage('✅ Zeiterfassung gespeichert!', 'success');
                     setTimeout(() => {
+                        // 🔧 FIX: Lade beides neu - History UND aktuellen Eintrag
                         loadMonthHistory();
+                        loadEntryForDate();
                     }, 500);
                 } else {
                     const error = await response.json();

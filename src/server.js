@@ -482,6 +482,7 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
          e.id,
          e.first_name,
          e.last_name,
+         e.name,
          COALESCE(esh.hourly_wage, e.hourly_wage) as hourly_wage,
          COALESCE(esh.fixed_salary, e.fixed_salary) as fixed_salary,
          COALESCE(esh.salary_type, e.salary_type) as salary_type,
@@ -501,6 +502,7 @@ app.get('/api/admin/report/:year/:month', (req, res) => {
       rows.forEach(row => {
         if (!report[row.id]) {
           report[row.id] = {
+            id: row.id,
             first_name: row.first_name,
             last_name: row.last_name,
             name: `${row.first_name} ${row.last_name}`,
@@ -602,6 +604,7 @@ app.get('/api/admin/export/:year/:month', (req, res) => {
       rows.forEach(row => {
         if (!report[row.id]) {
           report[row.id] = {
+            id: row.id,
             first_name: row.first_name,
             last_name: row.last_name,
             name: `${row.first_name} ${row.last_name}`,
