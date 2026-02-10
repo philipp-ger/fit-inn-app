@@ -87,24 +87,52 @@ const AdminDashboard = () => {
             doc.text(`Lohnkosten geschätzt: ${report.totalWage.toFixed(2)} €`, 14, 60);
             doc.text(`Mitarbeiter: ${report.employees.length}`, 14, 68);
 
-            // Table Data
-            const tableData = report.employees.map(emp => [
+            // Group employees
+            const minijobbers = report.employees.filter(emp => emp.employment_type === 'Minijobber');
+            const festangestellte = report.employees.filter(emp => emp.employment_type !== 'Minijobber');
+
+            const mapToTable = (list) => list.map(emp => [
                 emp.name,
                 emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt',
-                Object.keys(emp.days).length,
-                emp.totalHours.toFixed(2),
+                Object.keys(emp.days || {}).length,
+                (emp.totalHours || 0).toFixed(2),
                 (emp.totalWage || 0).toFixed(2) + ' €'
             ]);
 
-            // Using autoTable explicitly
-            autoTable(doc, {
-                startY: 76,
-                head: [['Mitarbeiter', 'Typ', 'Tage', 'Stunden', 'Verdienst']],
-                body: tableData,
-                headStyles: { fillColor: [102, 126, 234] },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                margin: { top: 76 }
-            });
+            let currentY = 76;
+
+            // Render Festangestellte Table if exist
+            if (festangestellte.length > 0) {
+                doc.setFontSize(14);
+                doc.setTextColor(102, 126, 234);
+                doc.text('Festangestellte', 14, currentY);
+
+                autoTable(doc, {
+                    startY: currentY + 4,
+                    head: [['Mitarbeiter', 'Typ', 'Tage', 'Stunden', 'Verdienst']],
+                    body: mapToTable(festangestellte),
+                    headStyles: { fillColor: [102, 126, 234] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    margin: { left: 14, right: 14 }
+                });
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+
+            // Render Minijobber Table if exist
+            if (minijobbers.length > 0) {
+                doc.setFontSize(14);
+                doc.setTextColor(102, 126, 234);
+                doc.text('Minijobber', 14, currentY);
+
+                autoTable(doc, {
+                    startY: currentY + 4,
+                    head: [['Mitarbeiter', 'Typ', 'Tage', 'Stunden', 'Verdienst']],
+                    body: mapToTable(minijobbers),
+                    headStyles: { fillColor: [102, 126, 234] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    margin: { left: 14, right: 14 }
+                });
+            }
 
             doc.save(`InnTime_Report_${format(currentDate, 'yyyy-MM')}.pdf`);
         } catch (err) {
