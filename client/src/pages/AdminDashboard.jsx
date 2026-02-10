@@ -6,7 +6,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const AdminDashboard = () => {
     const [report, setReport] = useState(null);
@@ -35,57 +35,71 @@ const AdminDashboard = () => {
     }, [currentDate]);
 
     const handleExport = () => {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        window.open(`/api/admin/export/${year}/${month}`, '_blank');
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            // Use location.href instead of window.open to avoid popup blockers
+            window.location.href = `/api/admin/export/${year}/${month}`;
+        } catch (err) {
+            console.error('CSV Export Error:', err);
+            alert('CSV Export fehlgeschlagen: ' + err.message);
+        }
     };
 
     const handlePDFExport = () => {
-        const doc = new jsPDF();
-        const monthName = format(currentDate, 'MMMM yyyy', { locale: de });
+        try {
+            if (!report || !report.employees) {
+                alert('Keine Daten für den Export verfügbar.');
+                return;
+            }
 
-        // Header
-        doc.setFontSize(22);
-        doc.setTextColor(102, 126, 234); // Primary color #667eea
-        doc.text('InnTime - Monatsbericht', 14, 22);
+            const doc = new jsPDF();
+            const monthName = format(currentDate, 'MMMM yyyy', { locale: de });
 
-        doc.setFontSize(12);
-        doc.setTextColor(113, 128, 150);
-        doc.text(`Zeitraum: ${monthName}`, 14, 30);
-        doc.text(`Erstellt am: ${format(new Date(), 'dd.MM.yyyy HH:mm')}`, 14, 36);
+            // Header
+            doc.setFontSize(22);
+            doc.setTextColor(102, 126, 234);
+            doc.text('InnTime - Monatsbericht', 14, 22);
 
-        // Stats
-        doc.setDrawColor(226, 232, 240);
-        doc.line(14, 42, 196, 42);
+            doc.setFontSize(12);
+            doc.setTextColor(113, 128, 150);
+            doc.text(`Zeitraum: ${monthName}`, 14, 30);
+            doc.text(`Erstellt am: ${format(new Date(), 'dd.MM.yyyy HH:mm')}`, 14, 36);
 
-        doc.setFontSize(14);
-        doc.setTextColor(45, 55, 72);
-        doc.text(`Gesamtstunden: ${report.totalHours.toFixed(2)} h`, 14, 52);
-        doc.text(`Lohnkosten geschätzt: ${report.totalWage.toFixed(2)} €`, 14, 60);
-        doc.text(`Mitarbeiter: ${report.employees.length}`, 14, 68);
+            // Stats
+            doc.setDrawColor(226, 232, 240);
+            doc.line(14, 42, 196, 42);
 
-        // Table
-        const tableData = report.employees.map(emp => [
-            emp.name,
-            emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt',
-            Object.keys(emp.days).length,
-            emp.totalHours.toFixed(2),
-            emp.totalWage.toFixed(2) + ' €'
-        ]);
+            doc.setFontSize(14);
+            doc.setTextColor(45, 55, 72);
+            doc.text(`Gesamtstunden: ${report.totalHours.toFixed(2)} h`, 14, 52);
+            doc.text(`Lohnkosten geschätzt: ${report.totalWage.toFixed(2)} €`, 14, 60);
+            doc.text(`Mitarbeiter: ${report.employees.length}`, 14, 68);
 
-        doc.autoTable({
-            startY: 76,
-            head: [['Mitarbeiter', 'Typ', 'Tage', 'Stunden', 'Verdienst']],
-            body: tableData,
-            headStyles: { fillColor: [102, 126, 234] },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { top: 76 }
-        });
+            // Table Data
+            const tableData = report.employees.map(emp => [
+                emp.name,
+                emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt',
+                Object.keys(emp.days).length,
+                emp.totalHours.toFixed(2),
+                (emp.totalWage || 0).toFixed(2) + ' €'
+            ]);
 
-        // Add details for each employee on new pages if needed or just a summary table
-        // For now, a clean summary table is a great start.
+            // Using autoTable explicitly
+            autoTable(doc, {
+                startY: 76,
+                head: [['Mitarbeiter', 'Typ', 'Tage', 'Stunden', 'Verdienst']],
+                body: tableData,
+                headStyles: { fillColor: [102, 126, 234] },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { top: 76 }
+            });
 
-        doc.save(`InnTime_Report_${format(currentDate, 'yyyy-MM')}.pdf`);
+            doc.save(`InnTime_Report_${format(currentDate, 'yyyy-MM')}.pdf`);
+        } catch (err) {
+            console.error('PDF Export Error:', err);
+            alert('PDF Export fehlgeschlagen: ' + err.message);
+        }
     };
 
     const openAddModal = () => {

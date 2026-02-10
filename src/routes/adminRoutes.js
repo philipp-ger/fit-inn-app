@@ -127,107 +127,69 @@ router.delete('/employee/:id', (req, res) => {
     });
 });
 
+// Helper: Calculate monthly report data from raw database rows
+function calculateReport(rows, year, month) {
+    const report = {};
+    rows.forEach(row => {
+        if (!report[row.id]) {
+            report[row.id] = {
+                id: row.id,
+                name: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Unbekannt',
+                first_name: row.first_name,
+                last_name: row.last_name,
+                salary_type: row.salary_type || 'hourly',
+                hourly_wage: row.hourly_wage || 0,
+                fixed_salary: row.fixed_salary || 0,
+                days: {}, // Will store date -> array of entries
+                totalHours: 0,
+                totalWage: 0
+            };
+        }
+        if (row.date && row.start_time && row.end_time) {
+            const start = new Date(`2000-01-01 ${row.start_time}`);
+            const end = new Date(`2000-01-01 ${row.end_time}`);
+            const hours = Math.max(0, (end - start) / (1000 * 60 * 60));
+
+            if (!report[row.id].days[row.date]) {
+                report[row.id].days[row.date] = [];
+            }
+
+            report[row.id].days[row.date].push({
+                hours: hours,
+                start_time: row.start_time,
+                end_time: row.end_time
+            });
+            report[row.id].totalHours += hours;
+        }
+    });
+
+    const reportArray = Object.values(report).map(emp => {
+        if (emp.salary_type === 'hourly') {
+            emp.totalWage = emp.totalHours * emp.hourly_wage;
+        } else {
+            emp.totalWage = emp.fixed_salary;
+        }
+        return emp;
+    });
+
+    const totalHoursAll = reportArray.reduce((sum, emp) => sum + emp.totalHours, 0);
+    const totalWageAll = reportArray.reduce((sum, emp) => sum + emp.totalWage, 0);
+    const totalWageHourly = reportArray.filter(emp => emp.salary_type === 'hourly').reduce((sum, emp) => sum + emp.totalWage, 0);
+    const totalWageFixed = reportArray.filter(emp => emp.salary_type === 'fixed').reduce((sum, emp) => sum + emp.totalWage, 0);
+
+    return {
+        year,
+        month: parseInt(month),
+        employees: reportArray,
+        totalHours: totalHoursAll,
+        totalWage: totalWageAll,
+        totalWageHourly: totalWageHourly,
+        totalWageFixed: totalWageFixed
+    };
+}
+
 // API: Get monthly report
 router.get('/report/:year/:month', (req, res) => {
-    const { year, month } = req.params;
-    const monthStr = String(month).padStart(2, '0');
-    const datePattern = `${year}-${monthStr}%`;
-
-    const fillSql = `
-    INSERT OR IGNORE INTO employee_salary_history (employee_id, year, month, hourly_wage, fixed_salary, salary_type)
-    SELECT DISTINCT e.id, ?, ?, e.hourly_wage, e.fixed_salary, e.salary_type
-    FROM employees e
-    WHERE EXISTS (
-      SELECT 1 FROM timesheets t 
-      WHERE t.employee_id = e.id AND t.date LIKE ?
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM employee_salary_history esh 
-      WHERE esh.employee_id = e.id AND esh.year = ? AND esh.month = ?
-    )
-  `;
-
-    db.run(fillSql, [year, month, datePattern, year, month], (err) => {
-        if (err) console.error('Fehler beim Füllen der Lohnhistorie:', err);
-
-        db.all(
-            `SELECT 
-         e.id,
-         e.first_name,
-         e.last_name,
-         COALESCE(esh.hourly_wage, e.hourly_wage) as hourly_wage,
-         COALESCE(esh.fixed_salary, e.fixed_salary) as fixed_salary,
-         COALESCE(esh.salary_type, e.salary_type) as salary_type,
-         t.date,
-         t.start_time,
-         t.end_time
-       FROM employees e
-       LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
-       LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
-       ORDER BY e.first_name, e.last_name, t.date`,
-            [year, month, datePattern],
-            (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-
-                const report = {};
-                rows.forEach(row => {
-                    if (!report[row.id]) {
-                        report[row.id] = {
-                            id: row.id,
-                            name: `${row.first_name} ${row.last_name}`,
-                            first_name: row.first_name,
-                            last_name: row.last_name,
-                            salary_type: row.salary_type || 'hourly',
-                            hourly_wage: row.hourly_wage || 0,
-                            fixed_salary: row.fixed_salary || 0,
-                            days: {},
-                            totalHours: 0,
-                            totalWage: 0
-                        };
-                    }
-                    if (row.date && row.start_time && row.end_time) {
-                        const start = new Date(`2000-01-01 ${row.start_time}`);
-                        const end = new Date(`2000-01-01 ${row.end_time}`);
-                        const hours = (end - start) / (1000 * 60 * 60);
-                        report[row.id].days[row.date] = {
-                            hours: hours,
-                            start_time: row.start_time,
-                            end_time: row.end_time
-                        };
-                        report[row.id].totalHours += hours;
-                    }
-                });
-
-                const reportArray = Object.values(report).map(emp => {
-                    if (emp.salary_type === 'hourly') {
-                        emp.totalWage = emp.totalHours * emp.hourly_wage;
-                    } else {
-                        emp.totalWage = emp.fixed_salary;
-                    }
-                    return emp;
-                });
-
-                const totalHoursAll = reportArray.reduce((sum, emp) => sum + emp.totalHours, 0);
-                const totalWageAll = reportArray.reduce((sum, emp) => sum + emp.totalWage, 0);
-                const totalWageHourly = reportArray.filter(emp => emp.salary_type === 'hourly').reduce((sum, emp) => sum + emp.totalWage, 0);
-                const totalWageFixed = reportArray.filter(emp => emp.salary_type === 'fixed').reduce((sum, emp) => sum + emp.totalWage, 0);
-
-                res.json({
-                    year,
-                    month: parseInt(month),
-                    employees: reportArray,
-                    totalHours: totalHoursAll,
-                    totalWage: totalWageAll,
-                    totalWageHourly: totalWageHourly,
-                    totalWageFixed: totalWageFixed
-                });
-            }
-        );
-    });
-});
-
-// API: Export monthly report as CSV
-router.get('/export/:year/:month', (req, res) => {
     const { year, month } = req.params;
     const monthStr = String(month).padStart(2, '0');
     const datePattern = `${year}-${monthStr}%`;
@@ -267,50 +229,63 @@ router.get('/export/:year/:month', (req, res) => {
             [year, month, datePattern],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
-
-                const report = {};
-                rows.forEach(row => {
-                    if (!report[row.id]) {
-                        report[row.id] = {
-                            name: `${row.first_name} ${row.last_name}`,
-                            salary_type: row.salary_type || 'hourly',
-                            hourly_wage: row.hourly_wage || 0,
-                            fixed_salary: row.fixed_salary || 0,
-                            days: {},
-                            totalHours: 0
-                        };
-                    }
-                    if (row.date && row.start_time && row.end_time) {
-                        const start = new Date(`2000-01-01 ${row.start_time}`);
-                        const end = new Date(`2000-01-01 ${row.end_time}`);
-                        const hours = (end - start) / (1000 * 60 * 60);
-                        report[row.id].days[row.date] = hours;
-                        report[row.id].totalHours += hours;
-                    }
-                });
-
-                // CSV generieren
-                let csv = 'Mitarbeiter,Gehaltstyp,Stundenlohn/Festgehalt,Arbeitstage,Stunden Details,Gesamtstunden,Verdienst\n';
-
-                Object.values(report).forEach(emp => {
-                    const workDays = Object.keys(emp.days).length;
-                    const details = Object.entries(emp.days)
-                        .map(([date, hours]) => `${date}: ${hours.toFixed(2)}h`)
-                        .join('; ');
-
-                    const wageInfo = emp.salary_type === 'hourly' ? `${emp.hourly_wage} €/h` : `${emp.fixed_salary} €`;
-                    const totalWage = emp.salary_type === 'hourly' ? (emp.totalHours * emp.hourly_wage) : emp.fixed_salary;
-                    const salaryTypeText = emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt';
-
-                    csv += `"${emp.name}","${salaryTypeText}","${wageInfo}",${workDays},"${details}",${emp.totalHours.toFixed(2)},"${totalWage.toFixed(2).replace('.', ',')} €"\n`;
-                });
-
-                res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-                res.setHeader('Content-Disposition', `attachment; filename="InnTime_Report_${year}-${monthStr}.csv"`);
-                res.send('\uFEFF' + csv); // BOM for Excel UTF-8 support
+                const reportData = calculateReport(rows, year, month);
+                res.json(reportData);
             }
         );
     });
+});
+
+// API: Export monthly report as CSV
+router.get('/export/:year/:month', (req, res) => {
+    const { year, month } = req.params;
+    const monthStr = String(month).padStart(2, '0');
+    const datePattern = `${year}-${monthStr}%`;
+
+    db.all(
+        `SELECT 
+       e.id,
+       e.first_name,
+       e.last_name,
+       COALESCE(esh.hourly_wage, e.hourly_wage) as hourly_wage,
+       COALESCE(esh.fixed_salary, e.fixed_salary) as fixed_salary,
+       COALESCE(esh.salary_type, e.salary_type) as salary_type,
+       t.date,
+       t.start_time,
+       t.end_time
+     FROM employees e
+     LEFT JOIN employee_salary_history esh ON e.id = esh.employee_id AND esh.year = ? AND esh.month = ?
+     LEFT JOIN timesheets t ON e.id = t.employee_id AND t.date LIKE ?
+     ORDER BY e.first_name, e.last_name, t.date`,
+        [year, month, datePattern],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            const reportData = calculateReport(rows, year, month);
+
+            // CSV generieren
+            let csv = 'Mitarbeiter,Gehaltstyp,Stundenlohn/Festgehalt,Arbeitstage,Stunden Details,Gesamtstunden,Verdienst\n';
+
+            reportData.employees.forEach(emp => {
+                const workDays = Object.keys(emp.days).length;
+                const details = Object.entries(emp.days)
+                    .map(([date, entries]) => {
+                        const dayHours = entries.reduce((s, e) => s + e.hours, 0);
+                        return `${date}: ${dayHours.toFixed(2)}h (${entries.map(e => `${e.start_time}-${e.end_time}`).join(', ')})`;
+                    })
+                    .join('; ');
+
+                const wageInfo = emp.salary_type === 'hourly' ? `${emp.hourly_wage} €/h` : `${emp.fixed_salary} €`;
+                const salaryTypeText = emp.salary_type === 'hourly' ? 'Stundenlohn' : 'Festgehalt';
+
+                csv += `"${emp.name}","${salaryTypeText}","${wageInfo}",${workDays},"${details}",${emp.totalHours.toFixed(2)},"${emp.totalWage.toFixed(2).replace('.', ',')} €"\n`;
+            });
+
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="InnTime_Report_${year}-${monthStr}.csv"`);
+            res.send('\uFEFF' + csv);
+        }
+    );
 });
 
 // API: Import salary data from CSV
