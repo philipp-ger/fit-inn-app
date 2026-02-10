@@ -48,29 +48,33 @@ Eine moderne, mobile-optimierte Full-Stack Anwendung zur Zeiterfassung für Fitn
 
 ---
 
-## 🚀 Installation & Setup (GitHub-Guide)
+---
+## 🚀 Installation & Setup
 
-Folge diesen Schritten, um die Anwendung auf deinem Rechner oder Studio-Server zu installieren.
+Folge diesen Schritten, um die Anwendung zu installieren und zu starten.
 
 ### 1. Voraussetzungen
-Stelle sicher, dass [Node.js](https://nodejs.org/) (Version 16 oder höher) installiert ist.
+Stelle sicher, dass [Node.js](https://nodejs.org/) installiert ist.
 
-### 2. Repository klonen
+### 2. Repository klonen & Installieren
 ```bash
 git clone https://github.com/philipp-ger/InnTime.git
 cd InnTime
-```
 
-### 3. Abhängigkeiten installieren
-Du musst die Pakete sowohl für den Server als auch für den Client installieren:
-
-```bash
-# Backend-Pakete
+# Backend installieren
 npm install
 
-# Frontend-Pakete
+# Frontend installieren
 cd client
 npm install
+cd ..
+```
+
+### 3. Frontend Build erstellen (WICHTIG)
+Da das Frontend auf dem Server im `dist`-Ordner liegen muss, muss dieser einmalig (oder nach Änderungen) erstellt werden:
+```bash
+cd client
+npm run build
 cd ..
 ```
 
@@ -78,18 +82,14 @@ cd ..
 
 ## 💻 Betrieb & Nutzung
 
-### Lokale Entwicklung (Dev-Modus)
-Ideal für Änderungen am Design oder Code:
+### Studio-Betrieb (Ein-Port-System)
+Nachdem der Build erstellt wurde (siehe oben), startet ein einziger Befehl die gesamte App:
 
-1.  **Server starten:** `node src/server.js` (läuft auf Port 3000)
-2.  **Client starten:** `cd client && npm run dev` (läuft auf Port 5173)
+1. **Server starten:** `node src/server.js`
+2. Öffne **[http://localhost:3000](http://localhost:3000)** im Browser.
 
-### Studio-Betrieb (Netzwerk-Modus)
-Damit Mitarbeiter von ihren Handys zugreifen können:
-
-1.  **Server starten:** `node src/server.js`
-2.  **Frontend extern freigeben:** `cd client && npm run dev -- --host`
-3.  Öffne die angezeigte **Network-URL** (z.B. `http://192.168.178.20:5173`) auf den Geräten im Studio-WLAN.
+Die Anwendung liefert nun das moderne React-Frontend direkt über Port 3000 aus. 
+Falls du von anderen Geräten im WLAN zugreifen willst, nutze die IP deines Rechners (z.B. `http://192.168.178.20:3000`).
 
 ---
 
