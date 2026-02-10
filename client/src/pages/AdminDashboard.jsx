@@ -13,8 +13,10 @@ const AdminDashboard = () => {
 
     // Add/Edit Employee State
     const [showModal, setShowModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [employeeForm, setEmployeeForm] = useState({ id: '', first_name: '', last_name: '', hourly_wage: 12 });
+    const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
     const [formMessage, setFormMessage] = useState(null);
 
     const loadReport = () => {
@@ -84,6 +86,38 @@ const AdminDashboard = () => {
         }
     };
 
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setFormMessage({ text: 'Passwörter stimmen nicht überein', type: 'error' });
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    oldPassword: passwordForm.oldPassword,
+                    newPassword: passwordForm.newPassword
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setFormMessage({ text: 'Passwort erfolgreich geändert!', type: 'success' });
+                setTimeout(() => {
+                    setShowPasswordModal(false);
+                    setFormMessage(null);
+                    setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                }, 1500);
+            } else {
+                setFormMessage({ text: data.error, type: 'error' });
+            }
+        } catch (err) {
+            setFormMessage({ text: 'Verbindungsfehler', type: 'error' });
+        }
+    };
+
     const handleDeleteEmployee = async (id) => {
         try {
             const res = await fetch(`/api/admin/employee/${id}`, {
@@ -109,9 +143,14 @@ const AdminDashboard = () => {
                 <h1 style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span>📊</span> Dashboard
                 </h1>
-                <Button variant="outline" onClick={() => window.location.href = '/'}>
-                    Logout
-                </Button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
+                        🔐 Passwort ändern
+                    </Button>
+                    <Button variant="outline" onClick={() => window.location.href = '/'}>
+                        Logout
+                    </Button>
+                </div>
             </div>
 
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
@@ -316,6 +355,64 @@ const AdminDashboard = () => {
                     </div>
                 )}
             </AnimatePresence>
+            {/* Password Modal */}
+            {showPasswordModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                    <Card style={{ width: '100%', maxWidth: '450px', position: 'relative' }}>
+                        <h2 style={{ marginBottom: '24px', fontSize: '20px' }}>🔐 Passwort ändern</h2>
+
+                        <form onSubmit={handlePasswordChange}>
+                            <Input
+                                type="password"
+                                label="Aktuelles Passwort"
+                                value={passwordForm.oldPassword}
+                                onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Input
+                                type="password"
+                                label="Neues Passwort"
+                                value={passwordForm.newPassword}
+                                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Input
+                                type="password"
+                                label="Neues Passwort bestätigen"
+                                value={passwordForm.confirmPassword}
+                                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                placeholder="••••••••"
+                                required
+                            />
+
+                            {formMessage && (
+                                <div style={{
+                                    padding: '12px',
+                                    background: formMessage.type === 'success' ? '#f0fff4' : '#fff5f5',
+                                    color: formMessage.type === 'success' ? '#38a169' : '#e53e3e',
+                                    borderRadius: '8px',
+                                    marginBottom: '16px',
+                                    fontSize: '14px',
+                                    textAlign: 'center'
+                                }}>
+                                    {formMessage.text}
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
+                                <Button type="button" variant="danger" onClick={() => { setShowPasswordModal(false); setFormMessage(null); }} style={{ flex: 1 }}>
+                                    Abbrechen
+                                </Button>
+                                <Button type="submit" variant="success" style={{ flex: 1 }}>
+                                    Speichern
+                                </Button>
+                            </div>
+                        </form>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

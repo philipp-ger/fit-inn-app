@@ -3,16 +3,36 @@ const router = express.Router();
 const db = require('../db/database');
 const { v4: uuidv4 } = require('uuid');
 
-const ADMIN_PASSWORD = 'fitinn2024';
-
 // API: Admin Login
 router.post('/login', (req, res) => {
     const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-        res.json({ success: true, token: 'admin-token' });
-    } else {
-        res.status(401).json({ error: 'Falsches Passwort' });
-    }
+    db.get("SELECT value FROM settings WHERE key = 'admin_password'", (err, row) => {
+        if (err) return res.status(500).json({ error: 'Datenbankfehler' });
+
+        if (row && password === row.value) {
+            res.json({ success: true, token: 'admin-token' });
+        } else {
+            res.status(401).json({ error: 'Falsches Passwort' });
+        }
+    });
+});
+
+// API: Change Admin Password
+router.post('/change-password', (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    db.get("SELECT value FROM settings WHERE key = 'admin_password'", (err, row) => {
+        if (err) return res.status(500).json({ error: 'Datenbankfehler' });
+
+        if (row && oldPassword === row.value) {
+            db.run("UPDATE settings SET value = ? WHERE key = 'admin_password'", [newPassword], (err2) => {
+                if (err2) return res.status(500).json({ error: 'Fehler beim Speichern' });
+                res.json({ success: true, message: 'Passwort erfolgreich geändert' });
+            });
+        } else {
+            res.status(401).json({ error: 'Das alte Passwort ist nicht korrekt' });
+        }
+    });
 });
 
 // API: Get all employees (Admin view)

@@ -84,89 +84,107 @@ function initializeDatabase() {
         FOREIGN KEY(employee_id) REFERENCES employees(id)
       )
     `);
-    
+
+    // Tabelle Einstellungen (für Passwort etc.)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `, () => {
+      initializeSettings();
+    });
+
     // Check migrations
     runMigrations();
   });
 }
 
-function runMigrations() {
-    // Migration: Prüfe ob neue Spalten existieren und füge sie hinzu wenn nicht
-    db.all('PRAGMA table_info(employees)', (err, columns) => {
-      if (err) return;
-      const hasHourlyWage = columns.some(col => col.name === 'hourly_wage');
-      const hasEmploymentType = columns.some(col => col.name === 'employment_type');
-      const hasSalaryType = columns.some(col => col.name === 'salary_type');
-      const hasFixedSalary = columns.some(col => col.name === 'fixed_salary');
-      const hasFirstName = columns.some(col => col.name === 'first_name');
-      const hasLastName = columns.some(col => col.name === 'last_name');
-      const hasName = columns.some(col => col.name === 'name');
-  
-      if (!hasHourlyWage) {
-        db.run('ALTER TABLE employees ADD COLUMN hourly_wage REAL DEFAULT 12.00');
-      }
-      if (!hasEmploymentType) {
-        db.run('ALTER TABLE employees ADD COLUMN employment_type TEXT DEFAULT \'Festangestellter\'');
-      }
-      if (!hasSalaryType) {
-        db.run('ALTER TABLE employees ADD COLUMN salary_type TEXT DEFAULT \'hourly\'');
-      }
-      if (!hasFixedSalary) {
-        db.run('ALTER TABLE employees ADD COLUMN fixed_salary REAL DEFAULT 0');
-      }
-  
-      // Migration: name -> first_name, last_name
-      if (hasName && !hasFirstName && !hasLastName) {
-        db.run('ALTER TABLE employees ADD COLUMN first_name TEXT', (err) => {
-          if (!err) {
-            db.run('ALTER TABLE employees ADD COLUMN last_name TEXT', (err) => {
-              if (!err) {
-                // Split existing names
-                db.all('SELECT id, name FROM employees WHERE first_name IS NULL', (err, rows) => {
-                  if (err || !rows) return;
-                  rows.forEach(row => {
-                    const parts = row.name.trim().split(' ');
-                    const firstName = parts[0] || '';
-                    const lastName = parts.slice(1).join(' ') || '';
-                    db.run('UPDATE employees SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, row.id]);
-                  });
-                });
-              }
-            });
-          }
-        });
-      }
-    });
+function initializeSettings() {
+  db.get("SELECT value FROM settings WHERE key = 'admin_password'", (err, row) => {
+    if (!err && !row) {
+      db.run("INSERT INTO settings (key, value) VALUES ('admin_password', 'fitinn2024')");
+    }
+  });
 }
 
-function initializeTestData() {
-     // Prüfe ob Test-Daten existieren
-     db.get('SELECT COUNT(*) as count FROM employees', (err, row) => {
-        if (err) console.error('Error:', err);
-        else if (row.count === 0) {
-          console.log('Initializing test data...');
-          const employees = [
-            { name: 'Anna' },
-            { name: 'Marco' },
-            { name: 'Lisa' },
-            { name: 'Tom' }
-          ];
-        
-          employees.forEach(emp => {
-            const id = uuidv4();
-            const uuid = uuidv4();
-            // Simple split for test data
-            db.run(
-              'INSERT INTO employees (id, name, first_name, last_name, uuid) VALUES (?, ?, ?, ?, ?)',
-              [id, emp.name, emp.name, '', uuid],
-              function(err) {
-                if (err) console.error('Error inserting employee:', err);
-                else console.log(`Mitarbeiter ${emp.name} erstellt (Link: /time/${uuid})`);
-              }
-            );
+function runMigrations() {
+  // Migration: Prüfe ob neue Spalten existieren und füge sie hinzu wenn nicht
+  db.all('PRAGMA table_info(employees)', (err, columns) => {
+    if (err) return;
+    const hasHourlyWage = columns.some(col => col.name === 'hourly_wage');
+    const hasEmploymentType = columns.some(col => col.name === 'employment_type');
+    const hasSalaryType = columns.some(col => col.name === 'salary_type');
+    const hasFixedSalary = columns.some(col => col.name === 'fixed_salary');
+    const hasFirstName = columns.some(col => col.name === 'first_name');
+    const hasLastName = columns.some(col => col.name === 'last_name');
+    const hasName = columns.some(col => col.name === 'name');
+
+    if (!hasHourlyWage) {
+      db.run('ALTER TABLE employees ADD COLUMN hourly_wage REAL DEFAULT 12.00');
+    }
+    if (!hasEmploymentType) {
+      db.run('ALTER TABLE employees ADD COLUMN employment_type TEXT DEFAULT \'Festangestellter\'');
+    }
+    if (!hasSalaryType) {
+      db.run('ALTER TABLE employees ADD COLUMN salary_type TEXT DEFAULT \'hourly\'');
+    }
+    if (!hasFixedSalary) {
+      db.run('ALTER TABLE employees ADD COLUMN fixed_salary REAL DEFAULT 0');
+    }
+
+    // Migration: name -> first_name, last_name
+    if (hasName && !hasFirstName && !hasLastName) {
+      db.run('ALTER TABLE employees ADD COLUMN first_name TEXT', (err) => {
+        if (!err) {
+          db.run('ALTER TABLE employees ADD COLUMN last_name TEXT', (err) => {
+            if (!err) {
+              // Split existing names
+              db.all('SELECT id, name FROM employees WHERE first_name IS NULL', (err, rows) => {
+                if (err || !rows) return;
+                rows.forEach(row => {
+                  const parts = row.name.trim().split(' ');
+                  const firstName = parts[0] || '';
+                  const lastName = parts.slice(1).join(' ') || '';
+                  db.run('UPDATE employees SET first_name = ?, last_name = ? WHERE id = ?', [firstName, lastName, row.id]);
+                });
+              });
+            }
           });
         }
       });
+    }
+  });
+}
+
+function initializeTestData() {
+  // Prüfe ob Test-Daten existieren
+  db.get('SELECT COUNT(*) as count FROM employees', (err, row) => {
+    if (err) console.error('Error:', err);
+    else if (row.count === 0) {
+      console.log('Initializing test data...');
+      const employees = [
+        { name: 'Anna' },
+        { name: 'Marco' },
+        { name: 'Lisa' },
+        { name: 'Tom' }
+      ];
+
+      employees.forEach(emp => {
+        const id = uuidv4();
+        const uuid = uuidv4();
+        // Simple split for test data
+        db.run(
+          'INSERT INTO employees (id, name, first_name, last_name, uuid) VALUES (?, ?, ?, ?, ?)',
+          [id, emp.name, emp.name, '', uuid],
+          function (err) {
+            if (err) console.error('Error inserting employee:', err);
+            else console.log(`Mitarbeiter ${emp.name} erstellt (Link: /time/${uuid})`);
+          }
+        );
+      });
+    }
+  });
 }
 
 // Start initialization
