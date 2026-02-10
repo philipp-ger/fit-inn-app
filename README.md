@@ -1,385 +1,129 @@
-# 🏋️ Fit-Inn Zeiterfassung
+# 🏋️ Fit-Inn Zeiterfassung v2.0
 
-Eine moderne, mobile-optimierte Web-App zur Zeiterfassung für Fitnessstudio-Mitarbeiter. Vollständig responsive und Touch-freundlich für Smartphones & Tablets.
+Eine moderne, mobile-optimierte Full-Stack Anwendung zur Zeiterfassung für Fitnessstudios. Entwickelt für **Fit-Inn Heldenbergen**, optimiert für Smartphones, Tablets und Desktop.
+
+![License](https://img.shields.io/badge/License-Proprietary-red.svg)
+![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-blue)
+![Node](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-green)
+![SQLite](https://img.shields.io/badge/Database-SQLite-lightgrey)
+
+---
+
+## 🌟 Highlights
+
+*   **Mobile-First Design:** Große Touch-Targets und intuitive Bedienung für Mitarbeiter unterwegs.
+*   **Admin Power:** Vollständiges Dashboard zur Verwaltung von Mitarbeitern, Arbeitszeiten und Lohnabrechnungen.
+*   **Ready-to-Go:** Lokale SQLite-Datenbank – keine komplexe Server-Einrichtung nötig.
+*   **Datenschutz:** Alle Daten bleiben lokal in deinem Studio-Netzwerk.
+
+---
 
 ## ✨ Features
 
-### 👤 Mitarbeiter-View
-- **Tab-basiertes Interface** 
-  - 📝 **Heute:** Schnelle Zeiterfassung für den aktuellen Tag
-  - 📋 **Diesen Monat:** Übersicht aller bisherigen Einträge
-- **Bearbeitbar:** Bereits eingetragene Zeiten können jederzeit angepasst werden
-- **Wochentag-Anzeige** für bessere Kontextinformation
-- **Quick-Action Buttons** ("Start jetzt" / "Ende jetzt")
-- **Mitarbeiter-Dropdown:** Einfache Auswahl aus der Liste
-- **Mobile-optimiert:** Full-responsive Design (360px - 1200px+)
-- **Toast-Benachrichtigungen:** Klare Bestätigungen beim Speichern/Laden
+### 👤 Für Mitarbeiter (Zeiterfassung)
+*   **Einfacher Login:** Mitarbeiterauswahl per Dropdown (keine Passwörter nötig für schnelle Erfassung).
+*   **Quick-Actions:** "Start jetzt" / "Ende jetzt" mit einem Klick.
+*   **Monatsübersicht:** Transparente Einsicht in alle geleisteten Stunden des aktuellen Monats.
+*   **Fehlerkorrektur:** Bearbeitung von Einträgen direkt in der App möglich.
+*   **Toast-Feedback:** Sofortige Bestätigung bei jeder Aktion.
 
-### 📊 Admin-Dashboard
-- **Accordion-View:** Mitarbeiter klicken → Details aufklappen
-- **Wochentag-Anzeige:** Jeder Eintrag mit Wochentag (Mo, Di, etc.)
-- **Inline Stundensummen:** Gesamtstunden pro Mitarbeiter sofort sichtbar
-- **Monatliche Navigation:** Vor-/Zurück-Buttons für jeden Monat
-- **CSV/Excel Export** mit Stundendetails
-- **Login-Schutz** mit einfachem Passwort
-- **Neue Mitarbeiter hinzufügen** direkt im Dashboard
-- **Mitarbeiter löschen** mit Bestätigung
+### 📊 Für den Admin (Philipp)
+*   **Employee Management (CRUD):** Mitarbeiter hinzufügen, bearbeiten oder löschen.
+*   **Intelligente Reports:** Monatliche Übersicht aller Stunden mit automatischer Summenbildung.
+*   **Lohn-Dashboard:** Unterstützung für Stundenlohn und Festgehalt mit automatischer Verdienstberechnung.
+*   **Export-Funktion:** CSV-Download für Excel oder Google Sheets.
+*   **Daten-Import:** Batch-Import von Mitarbeitern und Lohnhistorien via CSV.
+*   **Flexibilität:** Sortierung nach Name, Stunden, Verdienst oder Lohn.
 
-### 📥 Import/Export (NEU!)
-- **Mitarbeiter exportieren:** CSV-Download aller Mitarbeiter mit Kontaktdaten & Gehaltsinformationen
-- **Mitarbeiter importieren:** CSV-Upload für Batch-Operationen
-  - Neue Mitarbeiter werden automatisch erstellt
-  - Bestehende Mitarbeiter (nach Email) werden aktualisiert
-  - Unterstützt Stundenlohn & Festgehalt
-- **Lohnhistorie importieren:** Separate CSV für historische Lohndaten
+---
 
-### 🔀 Sortiermöglichkeiten (NEU!)
-Das Admin-Dashboard kann nach folgenden Kriterien sortiert werden:
-- **Name (A-Z / Z-A)** — Alphabetisch
-- **Stunden (auf-/absteigend)** — Nach geleisteten Stunden
-- **Verdienst (auf-/absteigend)** — Nach Gesamtverdienst im Monat
-- **Stundenlohn (auf-/absteigend)** — Nach Lohnrate pro Stunde
+## 🛠 Tech Stack
 
-Die Sortierung wird über ein Dropdown-Menü neben der Monatsnavigation gesteuert.
+| Komponente | Technologie |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, Framer Motion, Vanilla CSS |
+| **Backend** | Node.js, Express.js |
+| **Datenbank** | SQLite3 |
+| **Utilities** | Date-fns (Datumshandling), Lucide Icons |
 
-## 🎨 Design
+---
 
-- **Modern & Minimalistisch:** Gradient-Header mit Purple/Blue Scheme
-- **Große Touch-Targets:** Alle Buttons ≥ 48px für einfache Mobile-Bedienung
-- **Smooth Animations:** Scale-Effekte & Slide-In Nachrichten
-- **Dark-Mode freundlich:** Gutes Contrast-Verhältnis
-- **Accessible:** Klare Labels und Feedback
+## 🚀 Installation & Setup (GitHub-Guide)
 
-## 🛠 Tech-Stack
+Folge diesen Schritten, um die Anwendung auf deinem Rechner oder Studio-Server zu installieren.
 
-- **Backend:** Node.js + Express.js
-- **Datenbank:** SQLite (lokal, persistent)
-- **Frontend:** React + Vite (Modern, Single Page Application)
-- **Styling:** CSS Modules / Styled Components via React
-- **APIs:** RESTful Endpoints mit JSON
+### 1. Voraussetzungen
+Stelle sicher, dass [Node.js](https://nodejs.org/) (Version 16 oder höher) installiert ist.
 
-## 📦 Installation & Start
-
-### Voraussetzungen
-- Node.js 14+ installiert
-- Terminal/CMD Zugriff
-
-### Installation
-1. Repository klonen/herunterladen
-2. Dependencies installieren (Root & Client):
+### 2. Repository klonen
 ```bash
-# Backend Dependencies
+git clone https://github.com/philipp-ger/zeiterfassung_mitarbeiter.git
+cd zeiterfassung_mitarbeiter
+```
+
+### 3. Abhängigkeiten installieren
+Du musst die Pakete sowohl für den Server als auch für den Client installieren:
+
+```bash
+# Backend-Pakete
 npm install
 
-# Frontend Dependencies
+# Frontend-Pakete
 cd client
 npm install
 cd ..
 ```
 
-### App starten
-Um die App vollständig (Backend + Frontend) zu starten:
+---
 
-1. **Backend starten:**
-```bash
-node src/server.js
-```
-Läuft auf: http://localhost:3000
+## 💻 Betrieb & Nutzung
 
-2. **Frontend starten (in neuem Terminal):**
-```bash
-cd client
-npm run dev
-```
-Läuft auf: http://localhost:5173
+### Lokale Entwicklung (Dev-Modus)
+Ideal für Änderungen am Design oder Code:
 
-**Hinweis:** Das Frontend (Port 5173) leitet API-Anfragen automatisch an das Backend (Port 3000) weiter.
+1.  **Server starten:** `node src/server.js` (läuft auf Port 3000)
+2.  **Client starten:** `cd client && npm run dev` (läuft auf Port 5173)
 
-### Im Studio-Netzwerk Nutzung
-Um die App im Netzwerk verfügbar zu machen:
-1. Backend starten: `node src/server.js`
-2. Frontend mit Host-Flag starten: `cd client && npm run dev -- --host`
-3. Die angezeigte Network-URL (z.B. `http://192.168.x.x:5173`) auf den Geräten öffnen.
+### Studio-Betrieb (Netzwerk-Modus)
+Damit Mitarbeiter von ihren Handys zugreifen können:
 
-## 📱 Erste Schritte
-
-### Für Mitarbeiter (Zeiterfassung)
-1. **URL öffnen:** http://localhost:3000/time (oder IP-Adresse im Studio)
-2. **Mitarbeiter wählen** aus dem Dropdown
-3. **Datum wählen** (default: Heute)
-4. **Zeiten eingeben:**
-   - Startzeit: Manuell eingeben oder "Start jetzt" drücken
-   - Endzeit: Manuell eingeben oder "Ende jetzt" drücken
-5. **Speichern** drücken → grüne Toast-Nachricht bestätigt!
-6. **Bearbeiten:** Im "Diesen Monat"-Tab einen Tag klicken → Zeiten neu eingeben
-
-### Für Admin/Philipp (Dashboard)
-1. **Admin-Seite:** http://localhost:3000/admin
-2. **Anmelden:** Passwort eingeben (`fitinn2024`)
-3. **Dashboard sehen:** Monatliche Übersicht aller Mitarbeiter
-4. **Details:** Auf Mitarbeiter klicken → Arbeitstage aufklappen
-5. **Aktionen:**
-   - 📥 **Exportieren:** CSV für Excel/Google Sheets
-   - ➕ **Mitarbeiter hinzufügen:** Namen eingeben & speichern
-   - 🗑️ **Mitarbeiter löschen:** Mit Bestätigung
-
-## 🔗 URLs
-
-```
-http://localhost:3000/            → Startseite
-http://localhost:3000/time        → Mitarbeiter-Zeiterfassung
-http://localhost:3000/admin       → Admin-Login
-http://localhost:3000/admin/dashboard → Admin-Dashboard (nach Login)
-```
-
-## 🗂 Projektstruktur
-
-```
-fit-inn-app/
-├── src/
-│   └── server.js                 # Express Server + alle APIs
-├── public/
-│   ├── index.html                # Startseite
-│   ├── employee.html             # Mitarbeiter-Zeiterfassung (TAB-DESIGN)
-│   ├── admin-login.html          # Admin-Login
-│   └── admin-dashboard.html      # Admin-Dashboard (ACCORDION)
-├── data/
-│   └── timetracking.db           # SQLite Datenbank (auto-erstellt)
-├── package.json
-└── README.md
-```
-
-## 🔧 Konfiguration
-
-### Admin-Passwort ändern
-In `src/server.js` (ca. Zeile 170):
-```javascript
-const ADMIN_PASSWORD = 'fitinn2024';
-```
-
-### Port ändern
-In `src/server.js` (ca. Zeile 160):
-```javascript
-const PORT = 3000;
-```
-
-### Mitarbeiter manual hinzufügen (DB)
-Über Admin-Dashboard: "➕ Neuen Mitarbeiter hinzufügen"
-
-Oder in `initializeTestData()` für neue Test-Daten:
-```javascript
-const employees = [
-  { name: 'Anna' },
-  { name: 'Marco' },
-  { name: 'Dein Name' }
-];
-```
-
-## 📡 API Endpoints
-
-### Öffentlich (Mitarbeiter)
-```
-GET /time
-  → Mitarbeiter-Zeiterfassungs-Seite
-
-GET /api/employees
-  → Alle Mitarbeiter abrufen
-  Response: [{ id: "uuid", name: "Anna" }, ...]
-
-GET /api/employee/:id
-  → Mitarbeiter-Details
-  Response: { id: "uuid", name: "Anna" }
-
-GET /api/timesheet?employee_id=X&date=2024-02-08
-  → Eintrag für Datum laden
-  Response: { id: 1, start_time: "08:00", end_time: "17:00" }
-
-POST /api/timesheets
-  Body: { employee_id, date, start_time, end_time }
-  → Eintrag speichern/aktualisieren
-  Response: { success: true, message: "..." }
-```
-
-### Admin
-```
-GET /admin
-  → Admin-Login Seite
-
-POST /api/admin/login
-  Body: { password: "..." }
-  → Authentifizierung
-  Response: { success: true, token: "..." }
-
-GET /api/admin/employees
-  → Alle Mitarbeiter mit IDs
-  Response: [{ id: "uuid", name: "Anna" }, ...]
-
-POST /api/admin/employee
-  Body: { name: "Neuer Name" }
-  → Mitarbeiter hinzufügen
-  Response: { success: true, id: "uuid", name: "..." }
-
-DELETE /api/admin/employee/:id
-  → Mitarbeiter löschen
-  Response: { success: true, message: "..." }
-
-GET /api/admin/report/:year/:month
-  → Monatsbericht (z.B. /api/admin/report/2024/02)
-  Response: { year, month, employees: [...], totalHours: 150.5 }
-
-GET /api/admin/export/:year/:month
-  → CSV-Export herunterladen
-
-GET /api/admin/export/employees
-  → CSV-Export aller Mitarbeiter (Kontakt & Gehalt)
-  Response: CSV mit ID, Vorname, Nachname, Email, Stundenlohn, Festgehalt, Gehaltstyp
-
-POST /api/admin/import/employees
-  Body: { csvData: "CSV content..." }
-  → Mitarbeiter importieren/aktualisieren
-  Response: { success: true, imported: 5, updated: 2, errors: [...] }
-
-POST /api/admin/import-salary
-  Body: { csvData: "CSV content..." }
-  → Lohnhistorie importieren
-  Response: { success: true, imported: 10, errors: [...] }
-```
-
-## 💾 Datenbank
-
-SQLite mit 2 Tabellen:
-
-### `employees`
-```
-id (TEXT, PRIMARY KEY) - UUID
-name (TEXT) - Mitarbeitername
-uuid (TEXT, UNIQUE) - Legacy UUID (deprecated)
-created_at (DATETIME) - Erstellt am
-```
-
-### `timesheets`
-```
-id (INTEGER, PRIMARY KEY) - Auto-increment
-employee_id (TEXT, FK) - Referenz zu employees
-date (TEXT) - Datum YYYY-MM-DD
-start_time (TEXT) - Startzeit HH:MM
-end_time (TEXT) - Endzeit HH:MM
-created_at (DATETIME) - Erstellt am
-```
-
-## 📊 CSV Export Format
-
-### Zeitbericht (Monat)
-```csv
-Mitarbeitername,Arbeitstage,Stunden pro Tag,Gesamtstunden
-Anna,10,"2024-02-01: 8.00h; 2024-02-02: 8.50h; ...",82.50
-Marco,8,"2024-02-05: 7.50h; ...",60.00
-
-Gesamtstunden aller Mitarbeiter,,,142.50
-```
-
-### Mitarbeiter-Export
-```csv
-ID,Vorname,Nachname,Email,Stundenlohn,Festgehalt,Gehaltstyp
-1,"Max","Mustermann","max@example.com","15.00","","hourly"
-2,"Erika","Beispiel","erika@example.com","","2500.00","fixed"
-```
-
-### Import-Format (Mitarbeiter)
-Verwendung des gleichen Formats wie Export oben. Die Email wird zum Identifizieren bestehender Mitarbeiter verwendet.
-
-## 🔐 Sicherheit
-
-- ✅ Admin-Dashboard mit Passwort geschützt
-- ✅ Datenbank lokal auf dem Rechner (keine Cloud)
-- ✅ Keine API-Keys oder Secrets erforderlich
-- ✅ Nur für lokales Netzwerk (Studio-WLAN) gedacht
-- ⚠️ **Nicht ins Internet freigeben!**
-
-## 📱 Mobile Responsive Breakpoints
-
-```
-360px - 480px   → Telefone (iPhone SE, älter)
-480px - 768px   → Telefone & Small Tablets
-768px - 1024px  → Tablets
-1024px+         → Desktops
-```
-
-## 🐛 Troubleshooting
-
-### App startet nicht
-```bash
-# Dependencies neu installieren
-npm install
-
-# Node-Version prüfen
-node --version  # Sollte ≥ 14 sein
-```
-
-### Datenbank beschädigt / Zurücksetzen
-```bash
-# Alte Datenbank löschen
-rm data/timetracking.db
-
-# App neu starten (erstellt neue DB)
-npm start
-```
-
-### Port bereits belegt
-```bash
-# Anderen Port verwenden (z.B. 3001)
-PORT=3001 npm start
-```
-
-### Mitarbeiter im Studio-Netzwerk erreichbar?
-1. **Deine PC-IP finden:**
-   - Windows: `ipconfig` im CMD
-   - Mac: `ifconfig` im Terminal
-   - Suche nach `192.168.x.x` oder `10.0.x.x`
-
-2. **Mitarbeitern die URL geben:**
-   - z.B. `http://192.168.1.50:3000/time`
-
-3. **Test:** Auf deinem Handy im Studio-WLAN öffnen
-
-## 📈 Geplante Features
-
-- [ ] Benutzer-Authentifizierung (Login pro Mitarbeiter)
-- [ ] Schichtplanung & Übersicht
-- [ ] Automatische Pausen-Berechnung
-- [ ] Urlaub/Krankheitstage Tracking
-- [ ] SMS-Benachrichtigungen
-- [ ] Statistiken & Charts
-- [ ] Gehalt-/Lohn-Management (pro Mitarbeiter editierbar)
-- [ ] Zeiterfassungs-Berichte als PDF
-
-## 📋 Changelog
-
-### Version 2.2.0 (Februar 2026)
-- ✨ **Mitarbeiter Import/Export:** CSV-basiert, mit Auto-Update bei bestehenden Emails
-- ✨ **8 Sortiermöglichkeiten:** Name, Stunden, Verdienst, Stundenlohn (je auf-/absteigend)
-- 🔧 Refactored Employee Selector zu ID-basiertem Dropdown
-- 📦 Erweiterte Datenbank-Struktur für Lohnhistorie
-
-### Version 2.1.0 (Februar 2026)
-- ✨ Gehalt-/Lohnverwaltung (Stundenlohn vs. Festgehalt)
-- ✨ Lohnhistorie-Import (CSV)
-- 📊 Verdienst-Berechnung im Monatsbericht
-
-### Version 2.0.0 (Februar 2026)
-- 🎉 **Release:** Vollständig funktionales Zeiterfassungs-Dashboard
-- ✨ Accordion-View für Mitarbeiter-Details
-- ✨ Monatliche Navigation & Berichte
-- ✨ CSV-Export für Excel
-- ✨ Admin-Dashboard mit Passwortschutz
-
-## 📄 Lizenz
-
-Erstellt für Fit-Inn Heldenbergen
+1.  **Server starten:** `node src/server.js`
+2.  **Frontend extern freigeben:** `cd client && npm run dev -- --host`
+3.  Öffne die angezeigte **Network-URL** (z.B. `http://192.168.178.20:5173`) auf den Geräten im Studio-WLAN.
 
 ---
 
-**Version:** 2.2.0  
-**Letztes Update:** Februar 2026  
-**Status:** ✅ Produktionsreif  
-**Letzter Commit:** Employee Import/Export + 8 Sortiermöglichkeiten für Dashboard
+## ⚙️ Konfiguration
+
+*   **Admin-Passwort:** Das Standard-Passwort ist `fitinn2024`. Du kannst es in `src/server.js` ändern.
+*   **Ports:** Der Standard-Port ist `3000` (Backend) und `5173` (Frontend).
+
+---
+
+## 🗂 Projektstruktur
+
+```text
+zeiterfassung_mitarbeiter/
+├── src/                  # Backend Quellcode
+│   ├── db/               # Datenbank-Initialisierung & Schema
+│   ├── routes/           # API-Endpunkte (Admin, Employee)
+│   └── server.js         # Express-Server Konfiguration
+├── client/               # Frontend (React App)
+│   ├── src/              # React Komponenten & Seiten
+│   ├── public/           # Statische Assets
+│   └── package.json      # Frontend Abhängigkeiten
+├── data/                 # Speicherort der SQLite Datenbank
+├── README.md             # Diese Dokumentation
+└── package.json          # Root/Backend Abhängigkeiten
+```
+
+---
+
+## 📑 Lizenz & Support
+
+Erstellt für **Fit-Inn Heldenbergen**.
+
+**Support:** Bei Fragen wende dich direkt an Philipp.
+
+---
+**Version:** 3.0.0 | **Stand:** Februar 2026
